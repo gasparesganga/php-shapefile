@@ -90,32 +90,42 @@ class ShapeFile {
 	public function getRecord($geometry_format = self::GEOMETRY_ARRAY)
 	{
 		if (ftell($this->shp) >= $this->file_size) return false;
-		$record_number	= $this->ReadData('N');
-		$content_length	= $this->ReadData('N');
-		$shape_type		= $this->ReadData('V');
-		if ($shape_type != 0 && $shape_type != $this->shape_type) $this->Error('WRONG_RECORD_TYPE', $shape_type);
-		switch ($shape_type) {
-			case 0:
-				$shp = null;
-				break;
-			case 1:
-				$shp = $this->ReadPoint();
-				break;
-			case 8:
-				$shp = $this->ReadMultiPoint();
-				break;
-			case 3:
-				$shp = $this->ReadPolyLine();
-				break;
-			case 5:
-				$shp = $this->ReadPolygon();
-				break;
-		}
-		if ($geometry_format == self::GEOMETRY_WKT) $shp = $this->WKT($shp);
-		return array(
-			'shp'	=> $shp,
-			'dbf'	=> dbase_get_record_with_names($this->dbf, $record_number)
-		);
+		$record_number;
+		$array_result = array();
+		do{
+			
+			$record_number	= $this->ReadData('N');
+			if($record_number==null){
+				return $array_result;
+			}
+			$content_length	= $this->ReadData('N');
+			$shape_type		= $this->ReadData('V');
+			if ($shape_type != 0 && $shape_type != $this->shape_type) $this->Error('WRONG_RECORD_TYPE', $shape_type);
+			switch ($shape_type) {
+				case 0:
+					$shp = null;
+					break;
+				case 1:
+					$shp = $this->ReadPoint();
+					break;
+				case 8:
+					$shp = $this->ReadMultiPoint();
+					break;
+				case 3:
+					$shp = $this->ReadPolyLine();
+					break;
+				case 5:
+					$shp = $this->ReadPolygon();
+					break;
+			}
+			if ($geometry_format == self::GEOMETRY_WKT) $shp = $this->WKT($shp);
+			$array_result[] = array(
+				'shp'	=> $shp,
+				'dbf'	=> dbase_get_record_with_names($this->dbf, $record_number)
+			);
+		
+		}while($record_number);
+		return $array_result;
 	}
 	
 	
