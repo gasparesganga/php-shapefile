@@ -1,0 +1,24 @@
+{
+    "name": "gasparesganga/php-shapefile",
+    "description": "PHP Class to read any ESRI Shapefile and its associated DBF into a PHP Array",
+    "type": "library",
+    "keywords": ["shapefile", "shape", "shp", "dbf", "esri"],
+    "homepage": "http://gasparesganga.com/labs/php-shapefile/",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Gaspare Sganga",
+            "email": "contact@gasparesganga.com",
+            "homepage": "http://gasparesganga.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=5.0.0"
+    },
+    "autoload": {
+        "classmap": [
+            "src/shapefile.php"
+        ]
+    }
+}
