@@ -11,7 +11,7 @@ Please refer to PHP Manual for documentation: http://php.net/manual/en/ref.dbase
 ****************************************************************************************************/
 
 // =================================================================================================
-require_once(dirname(__FILE__).'/phpxbase/api_conversion.php');
+require_once('api_conversion.php');
 // =================================================================================================
 
 function dbase_add_record($dbase_identifier, $record) {
@@ -50,4 +50,3 @@ function dbase_pack($dbase_identifier) {
 function dbase_replace_record($dbase_identifier, $record, $record_number) {
     return xbase_replace_record($dbase_identifier, $record, $record_number);
 }
-?>
