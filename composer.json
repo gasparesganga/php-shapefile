@@ -1,6 +1,6 @@
 {
     "name": "gasparesganga/php-shapefile",
-    "description": "PHP Class to read any ESRI Shapefile and its associated DBF into a PHP Array",
+    "description": "PHP library to read any ESRI Shapefile and its associated DBF into a PHP Array or WKT",
     "type": "library",
     "keywords": ["shapefile", "shape", "shp", "dbf", "esri"],
     "homepage": "http://gasparesganga.com/labs/php-shapefile/",
@@ -14,11 +14,11 @@
         }
     ],
     "require": {
-        "php": ">=5.0.0"
+        "php": ">=5.3.0"
     },
     "autoload": {
-        "classmap": [
-            "src/shapefile.php"
-        ]
+        "psr-4": {
+            "ShapeFile\\": "src/"
+        }
     }
 }

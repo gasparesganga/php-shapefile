@@ -1,6 +1,6 @@
 # PHP ShapeFile
 
-PHP Class to read any *ESRI Shapefile* and its associated DBF into a PHP Array.
+PHP Class to read any *ESRI Shapefile* and its associated DBF into a PHP Array or WKT
 
 ---
 
