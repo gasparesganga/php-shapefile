@@ -144,7 +144,7 @@ class ShapeFile
             25  => 'readPolygonM',
             28  => 'readMultiPointM'
         );
-        $shp = $this->$methods[$shape_type]();
+        $shp = $this->{$methods[$shape_type]}();
         
         if ($geometry_format == self::GEOMETRY_WKT)  $shp = $this->toWKT($shp);
         if ($geometry_format == self::GEOMETRY_BOTH) $shp['wkt'] = $this->toWKT($shp);
