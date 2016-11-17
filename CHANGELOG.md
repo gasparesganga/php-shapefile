@@ -5,9 +5,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## [2.1.0] - 2016-11-17
+### Added
+- Public method `getDBFFields()`. It provides the fields definition in the DBF file
+
+
+
 ## [2.0.1] - 2016-11-10
 ### Fixed
 - PHP 7 Uniform Variable Syntax bugfix in `getRecord()` method
+
 
 
 ## [2.0.0] - 2016-11-01
@@ -32,6 +39,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - It works on big-endian machines
 
 
+
 ## [1.1] - 2016-03-31
 ### Added
 - Public method `getPRJ()`. It provides the raw WKT from the .prj file if present
@@ -43,6 +51,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 - Invalid polygons handling
+
 
 
 ## [1.0] - 2014-11-13
