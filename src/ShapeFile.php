@@ -2,14 +2,14 @@
 /***************************************************************************************************
 ShapeFile - PHP library to read any ESRI Shapefile and its associated DBF into a PHP Array or WKT
     Author          : Gaspare Sganga
-    Version         : 2.1.0
+    Version         : 2.2.0
     License         : MIT
     Documentation   : http://gasparesganga.com/labs/php-shapefile
 ****************************************************************************************************/
 
 namespace ShapeFile;
 
-class ShapeFile
+class ShapeFile implements \Iterator
 {
     // Constructor flags
     const FLAG_SUPPRESS_Z   = 0b1;
@@ -21,6 +21,8 @@ class ShapeFile
     const GEOMETRY_ARRAY    = 0;
     const GEOMETRY_WKT      = 1;
     const GEOMETRY_BOTH     = 2;
+    // End of file
+    const EOF               = 0;
     
     private static $error_messages = array(
         'FILE_EXISTS'               => array(11, "File not found. Check if the file exists and is readable"),
@@ -30,7 +32,9 @@ class ShapeFile
         'POLYGON_AREA_TOO_SMALL'    => array(31, "Polygon Area too small, can't determine vertex orientation"),
         'POLYGON_NOT_VALID'         => array(32, "Polygon not valid or Polygon Area too small. Please check the geometries before reading the Shapefile"),
         'DBF_FILE_NOT_VALID'        => array(41, "DBF file doesn't seem to be a valid dBase III or dBase IV format"),
-        'DBF_EOF_REACHED'           => array(42, "End of DBF file reached. Number of records not corresponding to the SHP file")
+        'DBF_MISMATCHED_FILE'       => array(42, "Mismatched DBF file. Number of records not corresponding to the SHP file"),
+        'DBF_EOF_REACHED'           => array(43, "End of DBF file reached. Number of records not corresponding to the SHP file"),
+        'RECORD_INDEX_NOT_VALID'    => array(91, "Record index not valid. Check the total number of records in the SHP file")
     ); 
     private static $shape_types = array(
         0   => 'Null Shape',
@@ -48,20 +52,30 @@ class ShapeFile
         28  => 'MultiPointM'
     );
     
+    // Handles
     private $shp_handle;
+    private $shx_handle;
     private $dbf_handle;
-    
+    // File sizes
     private $shp_size;
+    private $shx_size;
     private $dbf_size;
     
-    private $flags;
-    
+    // Shape info
     private $bounding_box;
-    private $prj;
     private $shape_type;
+    private $prj;
     
+    // DBF
     private $dbf_fields;
+    private $dbf_header_size;
     private $dbf_record_size;
+    
+    // Misc
+    private $flags;
+    private $big_endian_machine;
+    private $current_record;
+    private $tot_records;
     
     
     public function __construct($files, $flags = 0)
@@ -70,16 +84,20 @@ class ShapeFile
         if (is_string($files)) {
             $basename = (substr($files, -4) == '.shp') ? substr($files, 0, -4) : $files;
             $shp_file = $basename.'.shp';
+            $shx_file = $basename.'.shx';
             $dbf_file = $basename.'.dbf';
             $prj_file = $basename.'.prj';
         } else {
             $shp_file = isset($files['shp']) ? $files['shp'] : '';
+            $shx_file = isset($files['shx']) ? $files['shx'] : '';
             $dbf_file = isset($files['dbf']) ? $files['dbf'] : '';
             $prj_file = isset($files['prj']) ? $files['prj'] : '';
         }
         $this->shp_handle = $this->openFile($shp_file);
+        $this->shx_handle = $this->openFile($shx_file);
         $this->dbf_handle = $this->openFile($dbf_file);
         $this->shp_size   = filesize($shp_file);
+        $this->shx_size   = filesize($shx_file);
         $this->dbf_size   = filesize($dbf_file);
         $this->prj        = (is_readable($prj_file) && is_file($prj_file)) ? file_get_contents($prj_file) : null;
         
@@ -89,15 +107,51 @@ class ShapeFile
             self::FLAG_SUPPRESS_M   => ($flags & self::FLAG_SUPPRESS_M) > 0
         );
         
+        // Misc
+        $this->big_endian_machine   = current(unpack('v', pack('S', 0xff))) !== 0xff;
+        $this->tot_records          = ($this->shx_size - 100) / 8;
+        
         // Read Headers
         $this->readSHPHeader();
         $this->readDBFHeader();
+        
+        // Init record pointer
+        $this->rewind();
     }
     
     public function __destruct()
     {
         $this->closeFile($this->shp_handle);
+        $this->closeFile($this->shx_handle);
         $this->closeFile($this->dbf_handle);
+    }
+    
+    
+    public function rewind()
+    {
+        $this->current_record = 0;
+        $this->next();
+    }
+    
+    public function next()
+    {
+        $this->current_record++;
+        if (!$this->checkRecordIndex($this->current_record)) $this->current_record = self::EOF;
+    }
+    
+    public function current()
+    {
+        return $this->readSHPRecord();
+    }
+
+    public function key()
+    {
+        return $this->current_record;
+    }
+
+    public function valid()
+    {
+        return ($this->current_record !== self::EOF);
     }
     
     
@@ -125,38 +179,28 @@ class ShapeFile
         return $this->dbf_fields;
     }
     
-    public function getRecord($geometry_format = self::GEOMETRY_ARRAY)
+    
+    public function getTotRecords()
     {
-        if (ftell($this->shp_handle) >= $this->shp_size) return false;
-        
-        $record_number  = $this->readInt32B($this->shp_handle);
-        $content_length = $this->readInt32B($this->shp_handle);
-        $shape_type     = $this->readInt32L($this->shp_handle);
-        if ($shape_type != 0 && $shape_type != $this->shape_type) $this->throwException('WRONG_RECORD_TYPE', $shape_type);
-        $methods = array(
-            0   => 'readNull',
-            1   => 'readPoint',
-            3   => 'readPolyLine',
-            5   => 'readPolygon',
-            8   => 'readMultiPoint',
-            11  => 'readPointZ',
-            13  => 'readPolyLineZ',
-            15  => 'readPolygonZ',
-            18  => 'readMultiPointZ',
-            21  => 'readPointM',
-            23  => 'readPolyLineM',
-            25  => 'readPolygonM',
-            28  => 'readMultiPointM'
-        );
-        $shp = $this->{$methods[$shape_type]}();
-        
-        if ($geometry_format == self::GEOMETRY_WKT)  $shp = $this->toWKT($shp);
-        if ($geometry_format == self::GEOMETRY_BOTH) $shp['wkt'] = $this->toWKT($shp);
-        
-        return array(
-            'shp'   => $shp,
-            'dbf'   => $this->readDBFRecord()
-        );
+        return $this->tot_records;
+    }
+    
+    public function getCurrentRecord()
+    {
+        return $this->current_record;
+    }
+    
+    public function setCurrentRecord($index)
+    {
+        if (!$this->checkRecordIndex($index)) $this->throwException('RECORD_INDEX_NOT_VALID', $index);
+        $this->current_record = $index;
+    }
+    
+    public function getRecord($geometry_format = self::GEOMETRY_BOTH)
+    {
+        $ret = $this->readSHPRecord($geometry_format);
+        if ($ret !== false) $this->next();
+        return $ret;
     }
     
     
@@ -193,11 +237,6 @@ class ShapeFile
         return current(unpack($type, $data));
     }
     
-    private function isMachineBigEndian()
-    {
-        return current(unpack('v', pack('S', 0xff))) !== 0xff;
-    }
-    
     private function readInt16L($handle)
     {
         return $this->readData($handle, 'v', 2);
@@ -215,7 +254,7 @@ class ShapeFile
     
     private function readDoubleL($handle)
     {
-        return $this->readData($handle, 'd', 8, $this->isMachineBigEndian());
+        return $this->readData($handle, 'd', 8, $this->big_endian_machine);
     }
     
     private function readString($handle, $length)
@@ -249,14 +288,15 @@ class ShapeFile
     
     private function readDBFHeader()
     {
-        $this->setFilePointer($this->dbf_handle, 8);
-        $header_size            = $this->readInt16L($this->dbf_handle);
+        $this->setFilePointer($this->dbf_handle, 4);
+        if ($this->readInt32L($this->dbf_handle) !== $this->tot_records) $this->throwException('DBF_MISMATCHED_FILE');
+        $this->dbf_header_size  = $this->readInt16L($this->dbf_handle);
         $this->dbf_record_size  = $this->readInt16L($this->dbf_handle);
         
         $i                  = -1;
         $this->dbf_fields   = array();
         $this->setFilePointer($this->dbf_handle, 32);
-        while (ftell($this->dbf_handle) < $header_size - 1) {
+        while (ftell($this->dbf_handle) < $this->dbf_header_size - 1) {
             $i++;
             $this->dbf_fields[$i] = array(
                 'name'  => $this->readString($this->dbf_handle, 11),
@@ -274,9 +314,52 @@ class ShapeFile
     }
     
     
+    private function readSHPRecord($geometry_format = self::GEOMETRY_BOTH)
+    {
+        if (!$this->valid()) return false;
+        
+        // Read SHP offset from SHX
+        $this->setFilePointer($this->shx_handle, 100 + (($this->current_record - 1) * 8));
+        $shp_offset = $this->readInt32B($this->shx_handle) * 2;
+        $this->setFilePointer($this->shp_handle, $shp_offset);
+        
+        // Read SHP record header
+        $record_number  = $this->readInt32B($this->shp_handle);
+        $content_length = $this->readInt32B($this->shp_handle);
+        $shape_type     = $this->readInt32L($this->shp_handle);
+        if ($shape_type != 0 && $shape_type != $this->shape_type) $this->throwException('WRONG_RECORD_TYPE', $shape_type);
+        
+        // Read geometry
+        $methods = array(
+            0   => 'readNull',
+            1   => 'readPoint',
+            3   => 'readPolyLine',
+            5   => 'readPolygon',
+            8   => 'readMultiPoint',
+            11  => 'readPointZ',
+            13  => 'readPolyLineZ',
+            15  => 'readPolygonZ',
+            18  => 'readMultiPointZ',
+            21  => 'readPointM',
+            23  => 'readPolyLineM',
+            25  => 'readPolygonM',
+            28  => 'readMultiPointM'
+        );
+        $shp = $this->{$methods[$shape_type]}();
+        if ($geometry_format == self::GEOMETRY_WKT)  $shp = $this->toWKT($shp);
+        if ($geometry_format == self::GEOMETRY_BOTH) $shp['wkt'] = $this->toWKT($shp);
+        
+        return array(
+            'shp'   => $shp,
+            'dbf'   => $this->readDBFRecord()
+        );
+    }
+    
     private function readDBFRecord()
     {
-        // Some GIS programs don't include the last 0x1a byte in the DBF file, hence the "+ 1" in the following line
+        $this->setFilePointer($this->dbf_handle, $this->dbf_header_size + (($this->current_record - 1) * $this->dbf_record_size));
+        // Check if DBF is not corrupted (some "naive" users try to edit the DBF separately...)
+        // Some GIS softwares don't include the last 0x1a byte in the DBF file, hence the "+ 1" in the following line
         if (ftell($this->dbf_handle) >= ($this->dbf_size - $this->dbf_record_size + 1)) $this->throwException('DBF_EOF_REACHED');
         
         $ret = array();
@@ -298,6 +381,12 @@ class ShapeFile
         return $ret;
     }
     
+    private function checkRecordIndex($index)
+    {
+        return ($index > 0 && $index <= $this->tot_records);
+    }
+    
+    
     
     private function readZ()
     {
@@ -317,7 +406,7 @@ class ShapeFile
     
     private function parseM($value)
     {
-        return ($value < -100000000000000000000000000000000000000) ? false : $value;
+        return ($value < -pow(10, 38)) ? false : $value;
     }
     
     
@@ -560,8 +649,8 @@ class ShapeFile
         $tot += ($exp * $points[$num_points]['x'] * $points[0]['y']) - ($exp * $points[$num_points]['y'] * $points[0]['x']);
         
         if ($tot == 0) {
-            if ($exp >= 1000000000) $this->throwException('POLYGON_AREA_TOO_SMALL');
-            return $this->isClockwise($points, $exp * 1000);
+            if ($exp >= pow(10, 9)) $this->throwException('POLYGON_AREA_TOO_SMALL');
+            return $this->isClockwise($points, $exp * pow(10, 3));
         }
         
         return $tot < 0;

@@ -5,6 +5,23 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## [2.2.0] - 2016-11-23
+### Added
+- Capability to randomly access the shapefile records
+- Implements the PHP Iterator interface
+- Public method `getTotRecords()`. It provides the number of records in the shapefile
+- Public method `setCurrentRecord()`. It sets the current record pointer
+- Public method `getCurrentRecord()`. It gets the current record pointer
+- Error code 91: RECORD_INDEX_NOT_VALID
+
+### Changed
+- Class constructor: SHX file is now required
+
+### Fixed
+- Handles eventual useless random bytes between records in the SHP file (using the SHX file for the correct offsets)
+
+
+
 ## [2.1.0] - 2016-11-17
 ### Added
 - Public method `getDBFFields()`. It provides the fields definition in the DBF file
