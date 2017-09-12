@@ -5,3 +5,9 @@ PHP Class to read any *ESRI Shapefile* and its associated DBF into a PHP Array o
 ---
 
 Documentation and examples at [http://gasparesganga.com/labs/php-shapefile/](http://gasparesganga.com/labs/php-shapefile/)
+
+## Tests
+
+```
+./vendor/bin/phpunit
+```
