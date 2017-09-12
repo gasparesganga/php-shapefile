@@ -13,4 +13,11 @@ interface FileInterface
      * @return int file size
      */
     public function getSize();
+
+    /**
+     * [read description].
+     *
+     * @return string
+     */
+    public function read();
 }

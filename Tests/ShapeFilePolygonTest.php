@@ -3,12 +3,22 @@
 
 use PHPUnit\Framework\TestCase;
 use ShapeFile\ShapeFile;
+use ShapeFile\LocalFile;
 
 class ShapeFilePolygonTest extends TestCase
 {
+    protected function setUp()
+    {
+        $path = __DIR__.'/Fixtures/demo_formulierenPolygon';
+        $this->shp = new LocalFile($path.'.shp');
+        $this->dbf = new LocalFile($path.'.dbf');
+        $this->shx = new LocalFile($path.'.shx');
+        $this->prj = new LocalFile($path.'.prj');
+    }
+
     public function testGetBoundingBox()
     {
-        $shpfile = new ShapeFile(__DIR__.'/Fixtures/demo_formulierenPolygon');
+        $shpfile = new ShapeFile($this->shp, $this->shx, $this->dbf, $this->prj);
         $bbox = $shpfile->getBoundingBox();
         $this->assertEquals([
             'xmin' => 103083.42,
@@ -20,7 +30,7 @@ class ShapeFilePolygonTest extends TestCase
 
     public function testGetRecord()
     {
-        $shpfile = new ShapeFile(__DIR__.'/Fixtures/demo_formulierenPolygon');
+        $shpfile = new ShapeFile($this->shp, $this->shx, $this->dbf, $this->prj);
         while ($record = $shpfile->getRecord(ShapeFile::GEOMETRY_BOTH)) {
             $this->assertArrayHasKey('shp', $record);
             $this->assertArrayHasKey('wkt', $record['shp']);
@@ -32,7 +42,7 @@ class ShapeFilePolygonTest extends TestCase
 
     public function testGetDBFFields()
     {
-        $shpfile = new ShapeFile(__DIR__.'/Fixtures/demo_formulierenPolygon');
+        $shpfile = new ShapeFile($this->shp, $this->shx, $this->dbf, $this->prj);
         $fields = $shpfile->getDBFFields();
         $this->assertInternalType('array', $shpfile->getDBFFields());
         $this->assertArrayHasKey('name', $fields['0']);
