@@ -5,7 +5,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
-## [2.2.0] - 2016-11-23
+## v2.3.0 - 2017-09-14
+### Added
+- Protected method `init()` allows the main `ShapeFile` class to be easily extended using a custom constructor
+
+### Fixed
+- Some minor code abbelishments to better comply to PSR-2
+
+
+
+## v2.2.0 - 2016-11-23
 ### Added
 - Capability to randomly access the shapefile records
 - Implements the PHP Iterator interface
@@ -22,19 +31,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
 
-## [2.1.0] - 2016-11-17
+## v2.1.0 - 2016-11-17
 ### Added
 - Public method `getDBFFields()`. It provides the fields definition in the DBF file
 
 
 
-## [2.0.1] - 2016-11-10
+## v2.0.1 - 2016-11-10
 ### Fixed
 - PHP 7 Uniform Variable Syntax bugfix in `getRecord()` method
 
 
 
-## [2.0.0] - 2016-11-01
+## v2.0.0 - 2016-11-01
 ### Added
 - Support for Z and M shapes
 - Native DBF reading capabilities (no dbase functions or external libraries required anymore)
@@ -57,7 +66,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
 
-## [1.1] - 2016-03-31
+## v1.1 - 2016-03-31
 ### Added
 - Public method `getPRJ()`. It provides the raw WKT from the .prj file if present
 - Composer.json
@@ -71,5 +80,5 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
 
-## [1.0] - 2014-11-13
+## v1.0 - 2014-11-13
 *First public release*

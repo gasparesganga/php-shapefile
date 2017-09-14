@@ -2,7 +2,7 @@
 /***************************************************************************************************
 ShapeFile - PHP library to read any ESRI Shapefile and its associated DBF into a PHP Array or WKT
     Author          : Gaspare Sganga
-    Version         : 2.2.0
+    Version         : 2.3.0
     License         : MIT
     Documentation   : http://gasparesganga.com/labs/php-shapefile
 ****************************************************************************************************/
