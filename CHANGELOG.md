@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## v2.4.0 - 2017-11-20
+### Added
+- Public method `setDefaultGeometryFormat()`. It sets the default format for future calls to `getRecord()` and use with the Iterator interface (foreach loop)
+- `GEOMETRY_GEOJSON_GEOMETRY` and `GEOMETRY_GEOJSON_FEATURE` formats for `getRecord()` method
+
+### Changed
+- Geometry return format types for `getRecord()` can be combined using *bitwise Or* operator `|`
+- Default geometry return format for `getRecord()` method changed to `ShapeFile::GEOMETRY_ARRAY`
+
+### Deprecated
+- `GEOMETRY_BOTH` geometry return format for `getRecord()` method - Please update your code still relying on it
+
+
+
 ## v2.3.0 - 2017-09-14
 ### Added
 - Protected method `init()` allows the main `ShapeFile` class to be easily extended using a custom constructor

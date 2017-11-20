@@ -1,10 +1,10 @@
 <?php
 /***************************************************************************************************
-ShapeFile - PHP library to read any ESRI Shapefile and its associated DBF into a PHP Array or WKT
+ShapeFile - PHP library to read any ESRI Shapefile and its associated DBF into a PHP Array, WKT or GeoJSON
     Author          : Gaspare Sganga
-    Version         : 2.3.0
+    Version         : 2.4.0
     License         : MIT
-    Documentation   : http://gasparesganga.com/labs/php-shapefile
+    Documentation   : https://gasparesganga.com/labs/php-shapefile/
 ****************************************************************************************************/
 
 namespace ShapeFile;
@@ -12,17 +12,19 @@ namespace ShapeFile;
 class ShapeFile implements \Iterator
 {
     // Constructor flags
-    const FLAG_SUPPRESS_Z   = 0b1;
-    const FLAG_SUPPRESS_M   = 0b10;
+    const FLAG_SUPPRESS_Z           = 0b1;
+    const FLAG_SUPPRESS_M           = 0b10;
     // getShapeType() return type
-    const FORMAT_INT        = 0;
-    const FORMAT_STR        = 1;
+    const FORMAT_INT                = 0;
+    const FORMAT_STR                = 1;
     // getRecord() Geometry format
-    const GEOMETRY_ARRAY    = 0;
-    const GEOMETRY_WKT      = 1;
-    const GEOMETRY_BOTH     = 2;
+    const GEOMETRY_ARRAY            = 0b1;
+    const GEOMETRY_WKT              = 0b10;
+    const GEOMETRY_GEOJSON_GEOMETRY = 0b100;
+    const GEOMETRY_GEOJSON_FEATURE  = 0b1000;
+    const GEOMETRY_BOTH             = 0b11;     // DEPRECATED in v2.4.0!
     // End of file
-    const EOF               = 0;
+    const EOF                       = 0;
     
     private static $error_messages = array(
         'FILE_EXISTS'               => array(11, "File not found. Check if the file exists and is readable"),
@@ -73,6 +75,7 @@ class ShapeFile implements \Iterator
     
     // Misc
     private $flags;
+    private $default_geometry_format;
     private $big_endian_machine;
     private $current_record;
     private $tot_records;
@@ -186,7 +189,13 @@ class ShapeFile implements \Iterator
         $this->current_record = $index;
     }
     
-    public function getRecord($geometry_format = self::GEOMETRY_BOTH)
+    
+    public function setDefaultGeometryFormat($geometry_format)
+    {
+        $this->default_geometry_format = $geometry_format;
+    }
+    
+    public function getRecord($geometry_format = null)
     {
         $ret = $this->readSHPRecord($geometry_format);
         if ($ret !== false) {
@@ -224,8 +233,9 @@ class ShapeFile implements \Iterator
         );
         
         // Misc
-        $this->big_endian_machine   = current(unpack('v', pack('S', 0xff))) !== 0xff;
-        $this->tot_records          = ($this->shx_size - 100) / 8;
+        $this->default_geometry_format  = self::GEOMETRY_ARRAY;
+        $this->big_endian_machine       = current(unpack('v', pack('S', 0xff))) !== 0xff;
+        $this->tot_records              = ($this->shx_size - 100) / 8;
         
         // Read Headers
         $this->readSHPHeader();
@@ -363,7 +373,7 @@ class ShapeFile implements \Iterator
     }
     
     
-    private function readSHPRecord($geometry_format = self::GEOMETRY_BOTH)
+    private function readSHPRecord($geometry_format = null)
     {
         if (!$this->valid()) {
             return false;
@@ -399,15 +409,34 @@ class ShapeFile implements \Iterator
             28  => 'readMultiPointM'
         );
         $shp = $this->{$methods[$shape_type]}();
+        // Read DBF data
+        $dbf = $this->readDBFRecord();
+        
+        // Convert output
+        $geometry_format = $geometry_format ?: $this->default_geometry_format;
         if ($geometry_format == self::GEOMETRY_WKT) {
             $shp = $this->toWKT($shp);
-        } elseif ($geometry_format == self::GEOMETRY_BOTH) {
-            $shp['wkt'] = $this->toWKT($shp);
+        } elseif ($geometry_format == self::GEOMETRY_GEOJSON_GEOMETRY) {
+            $shp = $this->toGeoJSON($shp);
+        } elseif ($geometry_format == self::GEOMETRY_GEOJSON_FEATURE) {
+            $shp = $this->toGeoJSON($shp, $dbf);
+        } else {
+            $temp = ($geometry_format & self::GEOMETRY_ARRAY) ? $shp : array();
+            if ($geometry_format & self::GEOMETRY_WKT) {
+                $temp['wkt'] = $this->toWKT($shp);
+            }
+            if ($geometry_format & self::GEOMETRY_GEOJSON_GEOMETRY) {
+                $temp['geojson'] = $this->toGeoJSON($shp);
+            }
+            if ($geometry_format & self::GEOMETRY_GEOJSON_FEATURE) {
+                $temp['geojson'] = $this->toGeoJSON($shp, $dbf);
+            }
+            $shp = $temp;
         }
         
         return array(
             'shp'   => $shp,
-            'dbf'   => $this->readDBFRecord()
+            'dbf'   => $dbf
         );
     }
     
@@ -676,7 +705,6 @@ class ShapeFile implements \Iterator
         return $this->parsePolygon($this->readPolyLineZ());
     }
     
-    
     private function parsePolygon($data)
     {
         $i      = -1;
@@ -729,58 +757,15 @@ class ShapeFile implements \Iterator
     }
     
     
-    private function toWKT($data)
+    
+    private function checkPointsM($points)
     {
-        if (!$data) {
-            return null;
+        foreach ($points as $point) {
+            if ($point['m'] !== false) {
+                return true;
+            }
         }
-        
-        $geom_type  = $this->shape_type % 10;
-        $coord_type = floor($this->shape_type / 10);
-        $z          = !$this->flags[self::FLAG_SUPPRESS_Z] && ($coord_type == 1);
-        $ret        = null;
-        switch ($geom_type) {
-            case 1:
-                $m   = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM(array($data)) : false;
-                $ret = 'POINT'.($z ? 'Z' : '').($m ? 'M' : '').$this->implodePoints(array($data), $z, $m);
-                break;
-            
-            case 8:
-                $m   = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM($data['points']) : false;
-                $ret = 'MULTIPOINT'.($z ? 'Z' : '').($m ? 'M' : '').$this->implodePoints($data['points'], $z, $m);
-                break;
-            
-            case 3:
-                $m = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPartsM($data['parts']) : false;
-                if ($data['numparts'] == 1) {
-                    $ret = 'LINESTRING'.($z ? 'Z' : '').($m ? 'M' : '').$this->implodeParts($data['parts'], $z, $m);
-                } else {
-                    $ret = 'MULTILINESTRING'.($z ? 'Z' : '').($m ? 'M' : '').'('.$this->implodeParts($data['parts'], $z, $m).')';
-                }
-                break;
-            
-            case 5:
-                $m = false;
-                if (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) {
-                    foreach ($data['parts'] as $part) {
-                        if ($this->checkPartsM($part['rings'])) {
-                            $m = true;
-                            break;
-                        }
-                    }
-                }
-                $wkt = array();
-                foreach ($data['parts'] as $part) {
-                    $wkt[] = '('.$this->implodeParts($part['rings'], $z, $m).')';
-                }
-                if ($data['numparts'] == 1) {
-                    $ret = 'POLYGON'.($z ? 'Z' : '').($m ? 'M' : '').implode(', ', $wkt);
-                } else {
-                    $ret = 'MULTIPOLYGON'.($z ? 'Z' : '').($m ? 'M' : '').'('.implode(', ', $wkt).')';
-                }
-                break;
-        }
-        return $ret;
+        return false;
     }
     
     private function checkPartsM($parts)
@@ -793,33 +778,220 @@ class ShapeFile implements \Iterator
         return false;
     }
     
-    private function checkPointsM($points)
-    {
-        foreach ($points as $point) {
-            if ($point['m'] !== false) {
-                return true;
-            }
-        }
-        return false;
-    }
     
-    private function implodeParts($parts, $flagZ, $flagM)
+    private function implodePoint($point, $flagZ, $flagM)
     {
-        $wkt = array();
-        foreach ($parts as $part) {
-            $wkt[] = $this->implodePoints($part['points'], $flagZ, $flagM);
+        $ret = array($point['x'], $point['y']);
+        if ($flagZ) {
+            $ret[] = $point['z'];
         }
-        return implode(', ', $wkt);
+        if ($flagM) {
+            $ret[] = ($point['m'] === false) ? 0 : $point['m'];
+        }
+        return $ret;
     }
     
     private function implodePoints($points, $flagZ, $flagM)
     {
-        $wkt = array();
+        $ret = array();
         foreach ($points as $point) {
-            $wkt[] = $point['x'].' '.$point['y'].($flagZ ? ' '.$point['z'] : '').($flagM ? ' '.($point['m'] === false ? '0' : $point['m']) : '');
+            $ret[] = $this->implodePoint($point, $flagZ, $flagM);
         }
-        return '('.implode(', ', $wkt).')';
+        return $ret;
     }
+    
+    private function implodeParts($parts, $flagZ, $flagM)
+    {
+        $ret = array();
+        foreach ($parts as $part) {
+            $ret[] = $this->implodePoints($part['points'], $flagZ, $flagM);
+        }
+        return $ret;
+    }
+    
+    private function implodeBoundingBox($bounding_box)
+    {
+        $flagZ  = isset($bounding_box['zmin'], $bounding_box['zmax']);
+        $flagM  = isset($bounding_box['mmin'], $bounding_box['mmax']) && $bounding_box['mmin'] !== false && $bounding_box['mmax'] !== false;
+        
+        $ret = array(
+            $bounding_box['xmin'],
+            $bounding_box['ymin']
+        );
+        if ($flagZ) {
+            $ret[] = $bounding_box['zmin'];
+        }
+        if ($flagM) {
+            $ret[] = ($bounding_box['mmin'] === false) ? 0 : $bounding_box['mmin'];
+        }
+        
+        $ret[] = $bounding_box['xmax'];
+        $ret[] = $bounding_box['ymax'];
+        if ($flagZ) {
+            $ret[] = $bounding_box['zmax'];
+        }
+        if ($flagM) {
+            $ret[] = ($bounding_box['mmax'] === false) ? 0 : $bounding_box['mmax'];
+        }
+        
+        return $ret;
+    }
+    
+    
+    private function toWKT($shp)
+    {
+        if (!$shp) {
+            return null;
+        }
+        
+        $geom_type  = $this->shape_type % 10;
+        $coord_type = floor($this->shape_type / 10);
+        $flagZ      = !$this->flags[self::FLAG_SUPPRESS_Z] && ($coord_type == 1);
+        $ret        = null;
+        switch ($geom_type) {
+            case 1:
+                $flagM  = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM(array($shp)) : false;
+                $ret    = 'POINT' . ($flagZ ? 'Z' : '') . ($flagM ? 'M' : '') . $this->wktImplodePoints(array($shp), $flagZ, $flagM);
+                break;
+            
+            case 8:
+                $flagM  = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM($shp['points']) : false;
+                $ret    = 'MULTIPOINT' . ($flagZ ? 'Z' : '') . ($flagM ? 'M' : '') . $this->wktImplodePoints($shp['points'], $flagZ, $flagM);
+                break;
+            
+            case 3:
+                $flagM = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPartsM($shp['parts']) : false;
+                if ($shp['numparts'] == 1) {
+                    $ret = 'LINESTRING' . ($flagZ ? 'Z' : '') . ($flagM ? 'M' : '') . $this->wktImplodeParts($shp['parts'], $flagZ, $flagM);
+                } else {
+                    $ret = 'MULTILINESTRING' . ($flagZ ? 'Z' : '') . ($flagM ? 'M' : '') . '('.$this->wktImplodeParts($shp['parts'], $flagZ, $flagM).')';
+                }
+                break;
+            
+            case 5:
+                $flagM = false;
+                if (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) {
+                    foreach ($shp['parts'] as $part) {
+                        if ($this->checkPartsM($part['rings'])) {
+                            $flagM = true;
+                            break;
+                        }
+                    }
+                }
+                $parts = array();
+                foreach ($shp['parts'] as $part) {
+                    $parts[] = '(' . $this->wktImplodeParts($part['rings'], $flagZ, $flagM) . ')';
+                }
+                if ($shp['numparts'] == 1) {
+                    $ret = 'POLYGON' . ($flagZ ? 'Z' : '') . ($flagM ? 'M' : '') . implode(', ', $parts);
+                } else {
+                    $ret = 'MULTIPOLYGON' . ($flagZ ? 'Z' : '') . ($flagM ? 'M' : '') . '(' . implode(', ', $parts) . ')';
+                }
+                break;
+        }
+        return $ret;
+    }
+    
+    private function wktImplodePoints($points, $flagZ, $flagM)
+    {
+        $ret = array();
+        foreach ($this->implodePoints($points, $flagZ, $flagM) as $point) {
+            $ret[] = implode(' ', $point);
+        }
+        return '(' . implode(', ', $ret) . ')';
+    }
+    
+    private function wktImplodeParts($parts, $flagZ, $flagM)
+    {
+        $ret = array();
+        foreach ($parts as $part) {
+            $ret[] = $this->wktImplodePoints($part['points'], $flagZ, $flagM);
+        }
+        return implode(', ', $ret);
+    }
+    
+    
+    private function toGeoJSON($shp, $dbf = null)
+    {
+        if (!$shp) {
+            return null;
+        }
+        
+        $geom_type  = $this->shape_type % 10;
+        $coord_type = floor($this->shape_type / 10);
+        $flagZ      = !$this->flags[self::FLAG_SUPPRESS_Z] && ($coord_type == 1);
+        $ret        = null;
+        switch ($geom_type) {
+            case 1:
+                $flagM  = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM(array($shp)) : false;
+                $ret    = array(
+                    'type'          => 'Point' . ($flagM ? 'M' : ''),
+                    'coordinates'   => $this->implodePoint($shp, $flagZ, $flagM)
+                );
+                break;
+            
+            case 8:
+               $flagM  = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM($shp['points']) : false;
+               $ret = array(
+                    'type'          => 'MultiPoint' . ($flagM ? 'M' : ''),
+                    'coordinates'   => $this->implodePoints($shp['points'], $flagZ, $flagM)
+                );
+               break;
+            
+            case 3:
+                $flagM = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPartsM($shp['parts']) : false;
+                if ($shp['numparts'] == 1) {
+                    $ret = array(
+                        'type'          => 'LineString' . ($flagM ? 'M' : ''),
+                        'coordinates'   => $this->implodeParts($shp['parts'], $flagZ, $flagM)[0]
+                    );
+                } else {
+                    $ret = array(
+                        'type'          => 'MultiLineString' . ($flagM ? 'M' : ''),
+                        'coordinates'   => $this->implodeParts($shp['parts'], $flagZ, $flagM)
+                    );
+                }
+                break;
+            
+            case 5:
+                $flagM = false;
+                if (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) {
+                    foreach ($shp['parts'] as $part) {
+                        if ($this->checkPartsM($part['rings'])) {
+                            $flagM = true;
+                            break;
+                        }
+                    }
+                }
+                $parts = array();
+                foreach ($shp['parts'] as $part) {
+                    $parts[] = $this->implodeParts($part['rings'], $flagZ, $flagM);
+                }
+                if ($shp['numparts'] == 1) {
+                    $ret = array(
+                        'type'          => 'Polygon' . ($flagM ? 'M' : ''),
+                        'coordinates'   => $parts[0]
+                    );
+                } else {
+                    $ret = array(
+                        'type'          => 'MultiPolygon' . ($flagM ? 'M' : ''),
+                        'coordinates'   => $parts
+                    );
+                }
+                break;
+        }
+        
+        if ($dbf) {
+            $ret = array('type'     => 'Feature')
+                 + (($geom_type != 1) ? array('bbox' => $this->implodeBoundingBox($shp['bounding_box'])) : array())
+                 + array(
+                    'geometry'      => $ret,
+                    'properties'    => $dbf
+            );
+        }
+        return json_encode($ret);
+    }
+    
     
     
     private function throwException($error, $details = '')
