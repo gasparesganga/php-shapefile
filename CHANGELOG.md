@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## v2.4.1 - 2017-11-30
+### Fixed
+- Fixed *composer.json* file. Since version 2.4.0 the library requires PHP 5.4+
+
+
+
 ## v2.4.0 - 2017-11-20
 ### Added
 - Public method `setDefaultGeometryFormat()`. It sets the default format for future calls to `getRecord()` and use with the Iterator interface (foreach loop)
