@@ -2,7 +2,7 @@
 /***************************************************************************************************
 ShapeFile - PHP library to read any ESRI Shapefile and its associated DBF into a PHP Array, WKT or GeoJSON
     Author          : Gaspare Sganga
-    Version         : 2.4.1
+    Version         : 2.4.2
     License         : MIT
     Documentation   : https://gasparesganga.com/labs/php-shapefile/
 ****************************************************************************************************/
@@ -791,20 +791,23 @@ class ShapeFile implements \Iterator
         return $ret;
     }
     
-    private function implodePoints($points, $flagZ, $flagM)
+    private function implodePoints($points, $flagZ, $flagM, $reverse = false)
     {
         $ret = array();
+        if ($reverse) {
+            $points = array_reverse($points);
+        }
         foreach ($points as $point) {
             $ret[] = $this->implodePoint($point, $flagZ, $flagM);
         }
         return $ret;
     }
     
-    private function implodeParts($parts, $flagZ, $flagM)
+    private function implodeParts($parts, $flagZ, $flagM, $reverse = false)
     {
         $ret = array();
         foreach ($parts as $part) {
-            $ret[] = $this->implodePoints($part['points'], $flagZ, $flagM);
+            $ret[] = $this->implodePoints($part['points'], $flagZ, $flagM, $reverse);
         }
         return $ret;
     }
@@ -965,7 +968,7 @@ class ShapeFile implements \Iterator
                 }
                 $parts = array();
                 foreach ($shp['parts'] as $part) {
-                    $parts[] = $this->implodeParts($part['rings'], $flagZ, $flagM);
+                    $parts[] = $this->implodeParts($part['rings'], $flagZ, $flagM, true);
                 }
                 if ($shp['numparts'] == 1) {
                     $ret = array(

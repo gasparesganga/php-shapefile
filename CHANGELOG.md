@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## v2.4.2 - 2017-12-06
+### Fixed
+- Reversed the orientation of inner and outer rings in GeoJSON output of Polygons and MultiPolygons, complying to section 3.1.6 of RFC 7946
+
+
+
 ## v2.4.1 - 2017-11-30
 ### Fixed
 - Fixed *composer.json* file. Since version 2.4.0 the library requires PHP 5.4+
