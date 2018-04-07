@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## v2.4.3 - 2018-04-07
+### Fixed
+- Bug in binary reading function causing issues with DBF fields size
+
+
+
 ## v2.4.2 - 2017-12-06
 ### Fixed
 - Reversed the orientation of inner and outer rings in GeoJSON output of Polygons and MultiPolygons, complying to section 3.1.6 of RFC 7946
