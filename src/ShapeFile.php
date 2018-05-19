@@ -72,6 +72,10 @@ class ShapeFile implements \Iterator
     private $dbf_fields;
     private $dbf_header_size;
     private $dbf_record_size;
+
+    // Encoding
+    private $inputEncoding = 'ISO-8859-1';
+    private $outputEncoding = 'UTF-8';
     
     // Misc
     private $flags;
@@ -309,10 +313,20 @@ class ShapeFile implements \Iterator
     {
         return $this->readData($handle, 'd', 8, $this->big_endian_machine);
     }
+
+    public function setInputEncoding($inputEncoding)
+    {
+        $this->inputEncoding = $inputEncoding;
+    }
+
+    public function setOutputEncoding($outputEncoding)
+    {
+        $this->outputEncoding = $outputEncoding;
+    }
     
     private function readString($handle, $length)
     {
-        return utf8_encode(trim($this->readData($handle, 'A*', $length)));
+        return iconv($this->inputEncoding, $this->outputEncoding, trim($this->readData($handle, 'A*', $length)));
     }
     
     private function readChar($handle)
