@@ -2,7 +2,7 @@
 /***************************************************************************************************
 ShapeFile - PHP library to read any ESRI Shapefile and its associated DBF into a PHP Array, WKT or GeoJSON
     Author          : Gaspare Sganga
-    Version         : 2.4.3
+    Version         : 3dev
     License         : MIT
     Documentation   : https://gasparesganga.com/labs/php-shapefile/
 ****************************************************************************************************/
@@ -25,6 +25,7 @@ class ShapeFile implements \Iterator
     const GEOMETRY_BOTH             = 0b11;     // DEPRECATED in v2.4.0!
     // End of file
     const EOF                       = 0;
+    const DEFAULT_DBF_CHARSET       = 'ISO-8859-1';
     
     private static $error_messages = array(
         'FILE_EXISTS'               => array(11, "File not found. Check if the file exists and is readable"),
@@ -36,6 +37,7 @@ class ShapeFile implements \Iterator
         'DBF_FILE_NOT_VALID'        => array(41, "DBF file doesn't seem to be a valid dBase III or dBase IV format"),
         'DBF_MISMATCHED_FILE'       => array(42, "Mismatched DBF file. Number of records not corresponding to the SHP file"),
         'DBF_EOF_REACHED'           => array(43, "End of DBF file reached. Number of records not corresponding to the SHP file"),
+        'DBF_CHARSET_CONVERSION'    => array(44, "Error during conversion from provided DBF input charset to UTF-8"),
         'RECORD_INDEX_NOT_VALID'    => array(91, "Record index not valid. Check the total number of records in the SHP file")
     ); 
     private static $shape_types = array(
@@ -69,6 +71,7 @@ class ShapeFile implements \Iterator
     private $prj;
     
     // DBF
+    private $dbf_charset;
     private $dbf_fields;
     private $dbf_header_size;
     private $dbf_record_size;
@@ -89,21 +92,34 @@ class ShapeFile implements \Iterator
             $shx_file = $basename.'.shx';
             $dbf_file = $basename.'.dbf';
             $prj_file = $basename.'.prj';
+            $cpg_file = $basename.'.cpg';
+            $cst_file = $basename.'.cst';
         } else {
             $shp_file = isset($files['shp']) ? $files['shp'] : '';
             $shx_file = isset($files['shx']) ? $files['shx'] : '';
             $dbf_file = isset($files['dbf']) ? $files['dbf'] : '';
             $prj_file = isset($files['prj']) ? $files['prj'] : '';
+            $cpg_file = isset($files['cpg']) ? $files['cpg'] : '';
+            $cst_file = isset($files['cst']) ? $files['cst'] : '';
         }
         
         $this->init(
+            // SHP : Handle & Filesize
             $this->openFile($shp_file),
             filesize($shp_file),
+            // SHX : Handle & Filesize
             $this->openFile($shx_file),
             filesize($shx_file),
+            // DBF : Handle & Filesize
             $this->openFile($dbf_file),
             filesize($dbf_file),
+            // PRJ : File contents as string
             (is_readable($prj_file) && is_file($prj_file)) ? file_get_contents($prj_file) : null,
+            // CPG : File contents as string
+            (is_readable($cpg_file) && is_file($cpg_file)) ? file_get_contents($cpg_file) : null,
+            // CST : File contents as string
+            (is_readable($cst_file) && is_file($cst_file)) ? file_get_contents($cst_file) : null,
+            // Optional Flags
             $flags
         );
     }
@@ -165,6 +181,16 @@ class ShapeFile implements \Iterator
         return $this->prj;
     }
     
+    public function getDBFCharset()
+    {
+        return $this->dbf_charset;
+    }
+    
+    public function setDBFCharset($charset)
+    {
+        $this->dbf_charset = $charset;
+    }
+    
     public function getDBFFields()
     {
         return $this->dbf_fields;
@@ -208,29 +234,42 @@ class ShapeFile implements \Iterator
     
     /***************************** PROTECTED *****************************/
     protected function init(
+        // SHP : Handle & Filesize
         $shp_handle,
         $shp_size,
+        // SHX : Handle & Filesize
         $shx_handle,
         $shx_size,
+        // DBF : Handle & Filesize
         $dbf_handle,
         $dbf_size,
+        // PRJ : File contents as string
         $prj = null,
+        // CPG : File contents as string
+        $cpg = null,
+        // CST : File contents as string
+        $cst = null,
+        // Optional Flags
         $flags = 0
     ) {
         // Files
-        $this->shp_handle = $shp_handle;
-        $this->shx_handle = $shx_handle;
-        $this->dbf_handle = $dbf_handle;
-        $this->shp_size   = $shp_size;
-        $this->shx_size   = $shx_size;
-        $this->dbf_size   = $dbf_size;
-        $this->prj        = $prj;
+        $this->shp_handle   = $shp_handle;
+        $this->shx_handle   = $shx_handle;
+        $this->dbf_handle   = $dbf_handle;
+        $this->shp_size     = $shp_size;
+        $this->shx_size     = $shx_size;
+        $this->dbf_size     = $dbf_size;
+        $this->prj          = $prj;
+        $this->dbf_charset  = $cpg ?: $cst;
         
         // Flags
         $this->flags = array(
             self::FLAG_SUPPRESS_Z   => ($flags & self::FLAG_SUPPRESS_Z) > 0,
             self::FLAG_SUPPRESS_M   => ($flags & self::FLAG_SUPPRESS_M) > 0
         );
+        
+        // DBF Charset
+        $this->dbf_charset              = $this->dbf_charset ?: self::DEFAULT_DBF_CHARSET;
         
         // Misc
         $this->default_geometry_format  = self::GEOMETRY_ARRAY;
@@ -310,9 +349,13 @@ class ShapeFile implements \Iterator
         return $this->readData($handle, 'd', 8, $this->big_endian_machine);
     }
     
-    private function readString($handle, $length)
+    private function readString($handle, $length, $charset = self::DEFAULT_DBF_CHARSET)
     {
-        return utf8_encode(trim($this->readData($handle, 'A*', $length)));
+        $ret = @iconv($charset, 'UTF-8', $this->readData($handle, 'A*', $length));
+        if ($ret === false) {
+            $this->throwException('DBF_CHARSET_CONVERSION');
+        }
+        return trim($ret);
     }
     
     private function readChar($handle)
@@ -452,7 +495,7 @@ class ShapeFile implements \Iterator
         $ret = array();
         $ret['_deleted'] = ($this->readChar($this->dbf_handle) !== 0x20);
         foreach ($this->dbf_fields as $i => $field) {
-            $value = $this->readString($this->dbf_handle, $field['size']);
+            $value = $this->readString($this->dbf_handle, $field['size'], $this->dbf_charset);
             switch ($field['type']) {
                 case 'D':   // Date
                     $DateTime = \DateTime::createFromFormat('Ymd', $value);
