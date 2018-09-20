@@ -12,17 +12,16 @@ namespace ShapeFile;
 class ShapeFile implements \Iterator
 {
     // Constructor flags
-    const FLAG_SUPPRESS_Z           = 0b1;
-    const FLAG_SUPPRESS_M           = 0b10;
+    const FLAG_SUPPRESS_Z           = 1 << 0;
+    const FLAG_SUPPRESS_M           = 1 << 1;
     // getShapeType() return type
     const FORMAT_INT                = 0;
     const FORMAT_STR                = 1;
     // getRecord() Geometry format
-    const GEOMETRY_ARRAY            = 0b1;
-    const GEOMETRY_WKT              = 0b10;
-    const GEOMETRY_GEOJSON_GEOMETRY = 0b100;
-    const GEOMETRY_GEOJSON_FEATURE  = 0b1000;
-    const GEOMETRY_BOTH             = 0b11;     // DEPRECATED in v2.4.0!
+    const GEOMETRY_ARRAY            = 1 << 0;
+    const GEOMETRY_WKT              = 1 << 1;
+    const GEOMETRY_GEOJSON_GEOMETRY = 1 << 2;
+    const GEOMETRY_GEOJSON_FEATURE  = 1 << 3;
     // End of file
     const EOF                       = 0;
     const DEFAULT_DBF_CHARSET       = 'ISO-8859-1';
@@ -181,6 +180,7 @@ class ShapeFile implements \Iterator
         return $this->prj;
     }
     
+    
     public function getDBFCharset()
     {
         return $this->dbf_charset;
@@ -188,7 +188,7 @@ class ShapeFile implements \Iterator
     
     public function setDBFCharset($charset)
     {
-        $this->dbf_charset = $charset;
+        $this->dbf_charset = $charset ?: self::DEFAULT_DBF_CHARSET;
     }
     
     public function getDBFFields()
