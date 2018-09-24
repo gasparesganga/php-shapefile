@@ -12,19 +12,20 @@ namespace ShapeFile;
 class ShapeFile implements \Iterator
 {
     // Constructor flags
-    const FLAG_SUPPRESS_Z           = 1 << 0;
-    const FLAG_SUPPRESS_M           = 1 << 1;
-    // getShapeType() return type
-    const FORMAT_INT                = 0;
-    const FORMAT_STR                = 1;
-    // getRecord() Geometry format
-    const GEOMETRY_ARRAY            = 1 << 0;
-    const GEOMETRY_WKT              = 1 << 1;
-    const GEOMETRY_GEOJSON_GEOMETRY = 1 << 2;
-    const GEOMETRY_GEOJSON_FEATURE  = 1 << 3;
-    // End of file
-    const EOF                       = 0;
-    const DEFAULT_DBF_CHARSET       = 'ISO-8859-1';
+    const FLAG_SUPPRESS_Z                   = 0b1;
+    const FLAG_SUPPRESS_M                   = 0b10;
+    const FLAG_INVERT_POLYGONS_DIRECTION    = 0b100;
+    // getShapeType() return types
+    const FORMAT_INT                        = 0;
+    const FORMAT_STR                        = 1;
+    // getRecord() Geometry formats
+    const GEOMETRY_ARRAY                    = 0b1;
+    const GEOMETRY_WKT                      = 0b10;
+    const GEOMETRY_GEOJSON_GEOMETRY         = 0b100;
+    const GEOMETRY_GEOJSON_FEATURE          = 0b1000;
+    // Misc
+    const EOF                               = 0;
+    const DEFAULT_DBF_CHARSET               = 'ISO-8859-1';
     
     private static $error_messages = array(
         'FILE_EXISTS'               => array(11, "File not found. Check if the file exists and is readable"),
@@ -264,8 +265,9 @@ class ShapeFile implements \Iterator
         
         // Flags
         $this->flags = array(
-            self::FLAG_SUPPRESS_Z   => ($flags & self::FLAG_SUPPRESS_Z) > 0,
-            self::FLAG_SUPPRESS_M   => ($flags & self::FLAG_SUPPRESS_M) > 0
+            self::FLAG_SUPPRESS_Z                   => ($flags & self::FLAG_SUPPRESS_Z) > 0,
+            self::FLAG_SUPPRESS_M                   => ($flags & self::FLAG_SUPPRESS_M) > 0,
+            self::FLAG_INVERT_POLYGONS_DIRECTION    => ($flags & self::FLAG_INVERT_POLYGONS_DIRECTION) > 0
         );
         
         // DBF Charset
@@ -763,6 +765,9 @@ class ShapeFile implements \Iterator
             if ($i < 0) {
                 $this->throwException('POLYGON_NOT_VALID');
             }
+            if ($this->flags[self::FLAG_INVERT_POLYGONS_DIRECTION]) {
+                $rawpart['points'] = array_reverse($rawpart['points']);
+            }
             $parts[$i]['rings'][] = $rawpart;
         }
         for ($i = 0; $i < count($parts); ++$i) {
@@ -834,23 +839,20 @@ class ShapeFile implements \Iterator
         return $ret;
     }
     
-    private function implodePoints($points, $flagZ, $flagM, $reverse = false)
+    private function implodePoints($points, $flagZ, $flagM)
     {
         $ret = array();
-        if ($reverse) {
-            $points = array_reverse($points);
-        }
         foreach ($points as $point) {
             $ret[] = $this->implodePoint($point, $flagZ, $flagM);
         }
         return $ret;
     }
     
-    private function implodeParts($parts, $flagZ, $flagM, $reverse = false)
+    private function implodeParts($parts, $flagZ, $flagM)
     {
         $ret = array();
         foreach ($parts as $part) {
-            $ret[] = $this->implodePoints($part['points'], $flagZ, $flagM, $reverse);
+            $ret[] = $this->implodePoints($part['points'], $flagZ, $flagM);
         }
         return $ret;
     }
@@ -1011,7 +1013,7 @@ class ShapeFile implements \Iterator
                 }
                 $parts = array();
                 foreach ($shp['parts'] as $part) {
-                    $parts[] = $this->implodeParts($part['rings'], $flagZ, $flagM, true);
+                    $parts[] = $this->implodeParts($part['rings'], $flagZ, $flagM);
                 }
                 if ($shp['numparts'] == 1) {
                     $ret = array(
