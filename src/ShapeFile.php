@@ -11,10 +11,10 @@ namespace ShapeFile;
 
 class ShapeFile implements \Iterator
 {
-    // Constructor flags
-    const FLAG_SUPPRESS_Z                   = 0b1;
-    const FLAG_SUPPRESS_M                   = 0b10;
-    const FLAG_INVERT_POLYGONS_DIRECTION    = 0b100;
+    // Constructor options names
+    const OPTION_SUPPRESS_Z                 = 'suppress_z';
+    const OPTION_SUPPRESS_M                 = 'suppress_m';
+    const OPTION_INVERT_POLYGONS_DIRECTION  = 'invert_polygons_direction';
     // getShapeType() return types
     const FORMAT_INT                        = 0;
     const FORMAT_STR                        = 1;
@@ -77,14 +77,14 @@ class ShapeFile implements \Iterator
     private $dbf_record_size;
     
     // Misc
-    private $flags;
+    private $options;
     private $default_geometry_format;
     private $big_endian_machine;
     private $current_record;
     private $tot_records;
     
     
-    public function __construct($files, $flags = 0)
+    public function __construct($files, $options = array())
     {
         if (is_string($files)) {
             $basename = (substr($files, -4) == '.shp') ? substr($files, 0, -4) : $files;
@@ -119,8 +119,8 @@ class ShapeFile implements \Iterator
             (is_readable($cpg_file) && is_file($cpg_file)) ? file_get_contents($cpg_file) : null,
             // CST : File contents as string
             (is_readable($cst_file) && is_file($cst_file)) ? file_get_contents($cst_file) : null,
-            // Optional Flags
-            $flags
+            // Options
+            $options
         );
     }
     
@@ -250,8 +250,8 @@ class ShapeFile implements \Iterator
         $cpg = null,
         // CST : File contents as string
         $cst = null,
-        // Optional Flags
-        $flags = 0
+        // Options
+        $options = array()
     ) {
         // Files
         $this->shp_handle   = $shp_handle;
@@ -263,11 +263,11 @@ class ShapeFile implements \Iterator
         $this->prj          = $prj;
         $this->dbf_charset  = $cpg ?: $cst;
         
-        // Flags
-        $this->flags = array(
-            self::FLAG_SUPPRESS_Z                   => ($flags & self::FLAG_SUPPRESS_Z) > 0,
-            self::FLAG_SUPPRESS_M                   => ($flags & self::FLAG_SUPPRESS_M) > 0,
-            self::FLAG_INVERT_POLYGONS_DIRECTION    => ($flags & self::FLAG_INVERT_POLYGONS_DIRECTION) > 0
+        // Options (with default values)
+        $this->options = array_change_key_case($options, CASE_LOWER) + array(
+            self::OPTION_SUPPRESS_Z                 => false,
+            self::OPTION_SUPPRESS_M                 => false,
+            self::OPTION_INVERT_POLYGONS_DIRECTION  => true
         );
         
         // DBF Charset
@@ -526,7 +526,7 @@ class ShapeFile implements \Iterator
     {
         $ret    = array();
         $value  = $this->readDoubleL($this->shp_handle);
-        if (!$this->flags[self::FLAG_SUPPRESS_Z]) {
+        if (!$this->options[self::OPTION_SUPPRESS_Z]) {
             $ret['z'] = $value;
         }
         return $ret;
@@ -536,7 +536,7 @@ class ShapeFile implements \Iterator
     {
         $ret    = array();
         $value  = $this->readDoubleL($this->shp_handle);
-        if (!$this->flags[self::FLAG_SUPPRESS_M]) {
+        if (!$this->options[self::OPTION_SUPPRESS_M]) {
             $ret['m'] = $this->parseM($value);
         }
         return $ret;
@@ -568,7 +568,7 @@ class ShapeFile implements \Iterator
             'zmin'  => $this->readDoubleL($this->shp_handle),
             'zmax'  => $this->readDoubleL($this->shp_handle)
         );
-        return $this->flags[self::FLAG_SUPPRESS_Z] ? array() : $values;
+        return $this->options[self::OPTION_SUPPRESS_Z] ? array() : $values;
     }
     
     private function readMRange()
@@ -577,7 +577,7 @@ class ShapeFile implements \Iterator
             'mmin'  => $this->parseM($this->readDoubleL($this->shp_handle)),
             'mmax'  => $this->parseM($this->readDoubleL($this->shp_handle))
         );
-        return $this->flags[self::FLAG_SUPPRESS_M] ? array() : $values;
+        return $this->options[self::OPTION_SUPPRESS_M] ? array() : $values;
     }
     
     
@@ -765,7 +765,7 @@ class ShapeFile implements \Iterator
             if ($i < 0) {
                 $this->throwException('POLYGON_NOT_VALID');
             }
-            if ($this->flags[self::FLAG_INVERT_POLYGONS_DIRECTION]) {
+            if ($this->options[self::OPTION_INVERT_POLYGONS_DIRECTION]) {
                 $rawpart['points'] = array_reverse($rawpart['points']);
             }
             $parts[$i]['rings'][] = $rawpart;
@@ -894,21 +894,21 @@ class ShapeFile implements \Iterator
         
         $geom_type  = $this->shape_type % 10;
         $coord_type = floor($this->shape_type / 10);
-        $flagZ      = !$this->flags[self::FLAG_SUPPRESS_Z] && ($coord_type == 1);
+        $flagZ      = !$this->options[self::OPTION_SUPPRESS_Z] && ($coord_type == 1);
         $ret        = null;
         switch ($geom_type) {
             case 1:
-                $flagM  = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM(array($shp)) : false;
+                $flagM  = (!$this->options[self::OPTION_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM(array($shp)) : false;
                 $ret    = 'POINT' . ($flagZ ? 'Z' : '') . ($flagM ? 'M' : '') . $this->wktImplodePoints(array($shp), $flagZ, $flagM);
                 break;
             
             case 8:
-                $flagM  = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM($shp['points']) : false;
+                $flagM  = (!$this->options[self::OPTION_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM($shp['points']) : false;
                 $ret    = 'MULTIPOINT' . ($flagZ ? 'Z' : '') . ($flagM ? 'M' : '') . $this->wktImplodePoints($shp['points'], $flagZ, $flagM);
                 break;
             
             case 3:
-                $flagM = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPartsM($shp['parts']) : false;
+                $flagM = (!$this->options[self::OPTION_SUPPRESS_M] && $coord_type > 0) ? $this->checkPartsM($shp['parts']) : false;
                 if ($shp['numparts'] == 1) {
                     $ret = 'LINESTRING' . ($flagZ ? 'Z' : '') . ($flagM ? 'M' : '') . $this->wktImplodeParts($shp['parts'], $flagZ, $flagM);
                 } else {
@@ -918,7 +918,7 @@ class ShapeFile implements \Iterator
             
             case 5:
                 $flagM = false;
-                if (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) {
+                if (!$this->options[self::OPTION_SUPPRESS_M] && $coord_type > 0) {
                     foreach ($shp['parts'] as $part) {
                         if ($this->checkPartsM($part['rings'])) {
                             $flagM = true;
@@ -967,11 +967,11 @@ class ShapeFile implements \Iterator
         
         $geom_type  = $this->shape_type % 10;
         $coord_type = floor($this->shape_type / 10);
-        $flagZ      = !$this->flags[self::FLAG_SUPPRESS_Z] && ($coord_type == 1);
+        $flagZ      = !$this->options[self::OPTION_SUPPRESS_Z] && ($coord_type == 1);
         $ret        = null;
         switch ($geom_type) {
             case 1:
-                $flagM  = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM(array($shp)) : false;
+                $flagM  = (!$this->options[self::OPTION_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM(array($shp)) : false;
                 $ret    = array(
                     'type'          => 'Point' . ($flagM ? 'M' : ''),
                     'coordinates'   => $this->implodePoint($shp, $flagZ, $flagM)
@@ -979,7 +979,7 @@ class ShapeFile implements \Iterator
                 break;
             
             case 8:
-               $flagM  = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM($shp['points']) : false;
+               $flagM  = (!$this->options[self::OPTION_SUPPRESS_M] && $coord_type > 0) ? $this->checkPointsM($shp['points']) : false;
                $ret = array(
                     'type'          => 'MultiPoint' . ($flagM ? 'M' : ''),
                     'coordinates'   => $this->implodePoints($shp['points'], $flagZ, $flagM)
@@ -987,7 +987,7 @@ class ShapeFile implements \Iterator
                break;
             
             case 3:
-                $flagM = (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) ? $this->checkPartsM($shp['parts']) : false;
+                $flagM = (!$this->options[self::OPTION_SUPPRESS_M] && $coord_type > 0) ? $this->checkPartsM($shp['parts']) : false;
                 if ($shp['numparts'] == 1) {
                     $ret = array(
                         'type'          => 'LineString' . ($flagM ? 'M' : ''),
@@ -1003,7 +1003,7 @@ class ShapeFile implements \Iterator
             
             case 5:
                 $flagM = false;
-                if (!$this->flags[self::FLAG_SUPPRESS_M] && $coord_type > 0) {
+                if (!$this->options[self::OPTION_SUPPRESS_M] && $coord_type > 0) {
                     foreach ($shp['parts'] as $part) {
                         if ($this->checkPartsM($part['rings'])) {
                             $flagM = true;
