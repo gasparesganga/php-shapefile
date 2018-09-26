@@ -15,6 +15,7 @@ class ShapeFile implements \Iterator
     const OPTION_SUPPRESS_Z                 = 'suppress_z';
     const OPTION_SUPPRESS_M                 = 'suppress_m';
     const OPTION_INVERT_POLYGONS_DIRECTION  = 'invert_polygons_direction';
+    const OPTION_NULLIFY_INVALID_DATES      = 'nullify_invalid_dates';
     // getShapeType() return types
     const FORMAT_INT                        = 0;
     const FORMAT_STR                        = 1;
@@ -267,7 +268,8 @@ class ShapeFile implements \Iterator
         $this->options = array_change_key_case($options, CASE_LOWER) + array(
             self::OPTION_SUPPRESS_Z                 => false,
             self::OPTION_SUPPRESS_M                 => false,
-            self::OPTION_INVERT_POLYGONS_DIRECTION  => true
+            self::OPTION_INVERT_POLYGONS_DIRECTION  => true,
+            self::OPTION_NULLIFY_INVALID_DATES      => true
         );
         
         // DBF Charset
@@ -500,13 +502,16 @@ class ShapeFile implements \Iterator
             $value = $this->readString($this->dbf_handle, $field['size'], $this->dbf_charset);
             switch ($field['type']) {
                 case 'D':   // Date
-                    $DateTime = \DateTime::createFromFormat('Ymd', $value);
-                    if ($DateTime !== false) {
+                    $DateTime   = \DateTime::createFromFormat('Ymd', $value);
+                    $errors     = \DateTime::getLastErrors();
+                    if ($errors['warning_count'] || $errors['error_count']) {
+                        $value = $this->options[self::OPTION_NULLIFY_INVALID_DATES] ? null : $value;
+                    } else {
                         $value = $DateTime->format('Y-m-d');
-                    }
+                    }  
                     break;
                 case 'L':   // Logical
-                    $value = in_array($value, array('Y', 'y', 'T', 't'));
+                    $value = ($value === '?') ? null : in_array($value, array('Y', 'y', 'T', 't'));
                     break;
             }
             $ret[$field['name']] = $value;
