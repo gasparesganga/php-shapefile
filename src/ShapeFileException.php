@@ -10,17 +10,18 @@ ShapeFile - PHP library to read any ESRI Shapefile and its associated DBF into a
 namespace ShapeFile;
 
 class ShapeFileException extends \Exception
-{
-    private $error_type;
-    
-    public function __construct($message, $code, $error_type, Exception $previous = null)
-    {
-        $this->error_type = $error_type;
-        parent::__construct($message, $code, $previous);
-    }
-    
+{    
     public function getErrorType()
     {
-        return $this->error_type;
+        $ret        = null;
+        $code       = $this->getCode();
+        $Reflection = new \ReflectionClass('\ShapeFile\ShapeFile');
+        foreach ($Reflection->getConstants() as $name => $value) {
+            if ($value == $code && substr($name, 0, 4) == 'ERR_') {
+                $ret = $name;
+                break;
+            }
+        }
+        return $ret;
     }
 }

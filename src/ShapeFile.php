@@ -16,31 +16,49 @@ class ShapeFile implements \Iterator
     const OPTION_SUPPRESS_M                 = 'suppress_m';
     const OPTION_INVERT_POLYGONS_DIRECTION  = 'invert_polygons_direction';
     const OPTION_NULLIFY_INVALID_DATES      = 'nullify_invalid_dates';
+    
     // getShapeType() return types
     const FORMAT_INT                        = 0;
     const FORMAT_STR                        = 1;
+    
     // getRecord() Geometry formats
     const GEOMETRY_ARRAY                    = 0b1;
     const GEOMETRY_WKT                      = 0b10;
     const GEOMETRY_GEOJSON_GEOMETRY         = 0b100;
     const GEOMETRY_GEOJSON_FEATURE          = 0b1000;
+    
     // Misc
     const EOF                               = 0;
     const DEFAULT_DBF_CHARSET               = 'ISO-8859-1';
     
+    // Error Codes
+    const ERR_FILE_EXISTS                   = 11;
+    const ERR_FILE_OPEN                     = 12;
+    const ERR_SHAPE_TYPE_NOT_SUPPORTED      = 21;
+    const ERR_WRONG_RECORD_TYPE             = 22;
+    const ERR_POLYGON_AREA_TOO_SMALL        = 31;
+    const ERR_POLYGON_NOT_VALID             = 32;
+    const ERR_DBF_FILE_NOT_VALID            = 41;
+    const ERR_DBF_MISMATCHED_FILE           = 42;
+    const ERR_DBF_EOF_REACHED               = 43;
+    const ERR_DBF_CHARSET_CONVERSION        = 44;
+    const ERR_RECORD_INDEX_NOT_VALID        = 91;
+    
+    
     private static $error_messages = array(
-        'FILE_EXISTS'               => array(11, "File not found. Check if the file exists and is readable"),
-        'FILE_OPEN'                 => array(12, "Unable to read file"),
-        'SHAPE_TYPE_NOT_SUPPORTED'  => array(21, "Shape Type not supported"),
-        'WRONG_RECORD_TYPE'         => array(22, "Wrong Record's Shape Type"),
-        'POLYGON_AREA_TOO_SMALL'    => array(31, "Polygon Area too small, can't determine vertex orientation"),
-        'POLYGON_NOT_VALID'         => array(32, "Polygon not valid or Polygon Area too small. Please check the geometries before reading the Shapefile"),
-        'DBF_FILE_NOT_VALID'        => array(41, "DBF file doesn't seem to be a valid dBase III or dBase IV format"),
-        'DBF_MISMATCHED_FILE'       => array(42, "Mismatched DBF file. Number of records not corresponding to the SHP file"),
-        'DBF_EOF_REACHED'           => array(43, "End of DBF file reached. Number of records not corresponding to the SHP file"),
-        'DBF_CHARSET_CONVERSION'    => array(44, "Error during conversion from provided DBF input charset to UTF-8"),
-        'RECORD_INDEX_NOT_VALID'    => array(91, "Record index not valid. Check the total number of records in the SHP file")
-    ); 
+        self::ERR_FILE_EXISTS               => "File not found. Check if the file exists and is readable",
+        self::ERR_FILE_OPEN                 => "Unable to read file",
+        self::ERR_SHAPE_TYPE_NOT_SUPPORTED  => "Shape Type not supported",
+        self::ERR_WRONG_RECORD_TYPE         => "Wrong Record's Shape Type",
+        self::ERR_POLYGON_AREA_TOO_SMALL    => "Polygon Area too small, can't determine vertex orientation",
+        self::ERR_POLYGON_NOT_VALID         => "Polygon not valid or Polygon Area too small. Please check the geometries before reading the Shapefile",
+        self::ERR_DBF_FILE_NOT_VALID        => "DBF file doesn't seem to be a valid dBase III or dBase IV format",
+        self::ERR_DBF_MISMATCHED_FILE       => "Mismatched DBF file. Number of records not corresponding to the SHP file",
+        self::ERR_DBF_EOF_REACHED           => "End of DBF file reached. Number of records not corresponding to the SHP file",
+        self::ERR_DBF_CHARSET_CONVERSION    => "Error during conversion from provided DBF input charset to UTF-8",
+        self::ERR_RECORD_INDEX_NOT_VALID    => "Record index not valid. Check the total number of records in the SHP file"
+    );
+    
     private static $shape_types = array(
         0   => 'Null Shape',
         1   => 'Point',
@@ -56,6 +74,7 @@ class ShapeFile implements \Iterator
         25  => 'PolygonM',
         28  => 'MultiPointM'
     );
+    
     
     // Handles
     private $shp_handle;
@@ -212,7 +231,7 @@ class ShapeFile implements \Iterator
     public function setCurrentRecord($index)
     {
         if (!$this->checkRecordIndex($index)) {
-            $this->throwException('RECORD_INDEX_NOT_VALID', $index);
+            $this->throwException(self::ERR_RECORD_INDEX_NOT_VALID, $index);
         }
         $this->current_record = $index;
     }
@@ -294,11 +313,11 @@ class ShapeFile implements \Iterator
     private function openFile($file)
     {
         if (!(is_readable($file) && is_file($file))) {
-            $this->throwException('FILE_EXISTS', $file);
+            $this->throwException(self::ERR_FILE_EXISTS, $file);
         }
         $handle = fopen($file, 'rb');
         if (!$handle) {
-            $this->throwException('FILE_OPEN', $file);
+            $this->throwException(self::ERR_FILE_OPEN, $file);
         }
         return $handle;
     }
@@ -357,7 +376,7 @@ class ShapeFile implements \Iterator
     {
         $ret = @iconv($charset, 'UTF-8', $this->readData($handle, 'A*', $length));
         if ($ret === false) {
-            $this->throwException('DBF_CHARSET_CONVERSION');
+            $this->throwException(self::ERR_DBF_CHARSET_CONVERSION);
         }
         return trim($ret);
     }
@@ -374,7 +393,7 @@ class ShapeFile implements \Iterator
         $this->setFilePointer($this->shp_handle, 32);
         $this->shape_type = $this->readInt32L($this->shp_handle);
         if (!isset(self::$shape_types[$this->shape_type])) {
-            $this->throwException('SHAPE_TYPE_NOT_SUPPORTED', $this->shape_type);
+            $this->throwException(self::ERR_SHAPE_TYPE_NOT_SUPPORTED, $this->shape_type);
         }
         // Bounding Box
         $this->bounding_box = $this->readXYBoundingBox() + $this->readZRange() + $this->readMRange();
@@ -392,7 +411,7 @@ class ShapeFile implements \Iterator
     {
         $this->setFilePointer($this->dbf_handle, 4);
         if ($this->readInt32L($this->dbf_handle) !== $this->tot_records) {
-            $this->throwException('DBF_MISMATCHED_FILE');
+            $this->throwException(self::ERR_DBF_MISMATCHED_FILE);
         }
         $this->dbf_header_size  = $this->readInt16L($this->dbf_handle);
         $this->dbf_record_size  = $this->readInt16L($this->dbf_handle);
@@ -415,7 +434,7 @@ class ShapeFile implements \Iterator
         }
         // Field terminator
         if ($this->readChar($this->dbf_handle) !== 0x0d) {
-            $this->throwException('DBF_FILE_NOT_VALID');
+            $this->throwException(self::ERR_DBF_FILE_NOT_VALID);
         }
     }
     
@@ -436,7 +455,7 @@ class ShapeFile implements \Iterator
         $content_length = $this->readInt32B($this->shp_handle);
         $shape_type     = $this->readInt32L($this->shp_handle);
         if ($shape_type != 0 && $shape_type != $this->shape_type) {
-            $this->throwException('WRONG_RECORD_TYPE', $shape_type);
+            $this->throwException(self::ERR_WRONG_RECORD_TYPE, $shape_type);
         }
         
         // Read geometry
@@ -493,7 +512,7 @@ class ShapeFile implements \Iterator
         // Check if DBF is not corrupted (some "naive" users try to edit the DBF separately...)
         // Some GIS softwares don't include the last 0x1a byte in the DBF file, hence the "+ 1" in the following line
         if (ftell($this->dbf_handle) >= ($this->dbf_size - $this->dbf_record_size + 1)) {
-            $this->throwException('DBF_EOF_REACHED');
+            $this->throwException(self::ERR_DBF_EOF_REACHED);
         }
         
         $ret = array();
@@ -768,7 +787,7 @@ class ShapeFile implements \Iterator
                 );
             }
             if ($i < 0) {
-                $this->throwException('POLYGON_NOT_VALID');
+                $this->throwException(self::ERR_POLYGON_NOT_VALID);
             }
             if ($this->options[self::OPTION_INVERT_POLYGONS_DIRECTION]) {
                 $rawpart['points'] = array_reverse($rawpart['points']);
@@ -801,7 +820,7 @@ class ShapeFile implements \Iterator
         
         if ($tot == 0) {
             if ($exp >= pow(10, 9)) {
-                $this->throwException('POLYGON_AREA_TOO_SMALL');
+                $this->throwException(self::ERR_POLYGON_AREA_TOO_SMALL);
             }
             return $this->isClockwise($points, $exp * pow(10, 3));
         }
@@ -1047,13 +1066,12 @@ class ShapeFile implements \Iterator
     
     
     
-    private function throwException($error, $details = '')
+    private function throwException($code, $details = '')
     {
-        $code       = self::$error_messages[$error][0];
-        $message    = self::$error_messages[$error][1];
-        if ($details != '') {
+        $message = self::$error_messages[$code];
+        if ($details) {
             $message .= ': "'.$details.'"';
         }
-        throw new ShapeFileException($message, $code, $error);
+        throw new ShapeFileException($message, $code);
     }
 }
