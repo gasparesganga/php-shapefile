@@ -16,6 +16,7 @@ class ShapeFile implements \Iterator
     const OPTION_SUPPRESS_M                 = 'suppress_m';
     const OPTION_INVERT_POLYGONS_DIRECTION  = 'invert_polygons_direction';
     const OPTION_NULLIFY_INVALID_DATES      = 'nullify_invalid_dates';
+    const OPTION_NULL_PADDING_CHAR          = 'null_padding_char';
     
     // getShapeType() return types
     const FORMAT_INT                        = 0;
@@ -288,8 +289,18 @@ class ShapeFile implements \Iterator
             self::OPTION_SUPPRESS_Z                 => false,
             self::OPTION_SUPPRESS_M                 => false,
             self::OPTION_INVERT_POLYGONS_DIRECTION  => true,
-            self::OPTION_NULLIFY_INVALID_DATES      => true
+            self::OPTION_NULLIFY_INVALID_DATES      => true,
+            self::OPTION_NULL_PADDING_CHAR          => null
         );
+        if (
+            $this->options[self::OPTION_NULL_PADDING_CHAR] === null  || 
+            $this->options[self::OPTION_NULL_PADDING_CHAR] === false || 
+            $this->options[self::OPTION_NULL_PADDING_CHAR] === ''
+        ) {
+            $this->options[self::OPTION_NULL_PADDING_CHAR] = null;
+        } else {
+            $this->options[self::OPTION_NULL_PADDING_CHAR] = substr($this->options[self::OPTION_NULL_PADDING_CHAR], 0, 1);
+        }
         
         // DBF Charset
         $this->dbf_charset              = $this->dbf_charset ?: self::DEFAULT_DBF_CHARSET;
@@ -519,19 +530,23 @@ class ShapeFile implements \Iterator
         $ret['_deleted'] = ($this->readChar($this->dbf_handle) !== 0x20);
         foreach ($this->dbf_fields as $i => $field) {
             $value = $this->readString($this->dbf_handle, $field['size'], $this->dbf_charset);
-            switch ($field['type']) {
-                case 'D':   // Date
-                    $DateTime   = \DateTime::createFromFormat('Ymd', $value);
-                    $errors     = \DateTime::getLastErrors();
-                    if ($errors['warning_count'] || $errors['error_count']) {
-                        $value = $this->options[self::OPTION_NULLIFY_INVALID_DATES] ? null : $value;
-                    } else {
-                        $value = $DateTime->format('Y-m-d');
-                    }  
-                    break;
-                case 'L':   // Logical
-                    $value = ($value === '?') ? null : in_array($value, array('Y', 'y', 'T', 't'));
-                    break;
+            if (isset($this->options[self::OPTION_NULL_PADDING_CHAR]) && $value == str_repeat($this->options[self::OPTION_NULL_PADDING_CHAR], $field['size'])) {
+                $value = null;
+            } else {
+                switch ($field['type']) {
+                    case 'D':   // Date
+                        $DateTime   = \DateTime::createFromFormat('Ymd', $value);
+                        $errors     = \DateTime::getLastErrors();
+                        if ($errors['warning_count'] || $errors['error_count']) {
+                            $value = $this->options[self::OPTION_NULLIFY_INVALID_DATES] ? null : $value;
+                        } else {
+                            $value = $DateTime->format('Y-m-d');
+                        }  
+                        break;
+                    case 'L':   // Logical
+                        $value = ($value === '?') ? null : in_array($value, array('Y', 'y', 'T', 't'));
+                        break;
+                }
             }
             $ret[$field['name']] = $value;
         }
