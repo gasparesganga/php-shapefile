@@ -1,15 +1,15 @@
 <?php
 /***************************************************************************************************
-ShapeFile - PHP library to read any ESRI Shapefile and its associated DBF into a PHP Array, WKT or GeoJSON
+Shapefile - PHP library to read any ESRI Shapefile and its associated DBF into a PHP Array, WKT or GeoJSON
     Author          : Gaspare Sganga
     Version         : 3dev
     License         : MIT
     Documentation   : https://gasparesganga.com/labs/php-shapefile/
 ****************************************************************************************************/
 
-namespace ShapeFile;
+namespace Shapefile;
 
-class ShapeFileAutoloader
+class ShapefileAutoloader
 {
     public static function register()
     {
