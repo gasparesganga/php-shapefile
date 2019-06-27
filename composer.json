@@ -1,15 +1,15 @@
 {
     "name": "gasparesganga/php-shapefile",
-    "description": "PHP library to read any ESRI Shapefile and its associated DBF into a PHP Array, WKT or GeoJSON",
+    "description": "PHP library to read and write ESRI Shapefiles, compatible with WKT and GeoJSON",
     "type": "library",
-    "keywords": ["shapefile", "shape", "shp", "dbf", "esri", "wkt", "geojson"],
+    "keywords": ["shapefile", "shape", "esri", "shp", "dbf", "wkt", "geojson"],
     "homepage": "https://gasparesganga.com/labs/php-shapefile/",
     "license": "MIT",
     "authors": [
         {
             "name": "Gaspare Sganga",
             "email": "contact@gasparesganga.com",
-            "homepage": "https://gasparesganga.com",
+            "homepage": "https://gasparesganga.com/labs/php-shapefile/",
             "role": "Developer"
         }
     ],
@@ -18,7 +18,7 @@
     },
     "autoload": {
         "psr-4": {
-            "ShapeFile\\": "src/"
+            "Shapefile\\": "src/Shapefile/"
         }
     }
 }

@@ -1,8 +1,129 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](http://keepachangelog.com/) 
-and this project adheres to [Semantic Versioning](http://semver.org/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/) 
+and this project adheres to [Semantic Versioning](https://semver.org/).
+
+
+## v3dev
+### Added
+- Complete OOP style refactoring
+- Shapefile writing capabilities
+- PHPDoc style comments
+- `Shapefile\Geometry` namespace with `Point`, `MultiPoint`, `Linestring`, `MultiLinestring`, `Polygon` and `MultiPolygon` classes
+- `ShapefileReader` and `ShapefileWriter` classes
+- `AbstractShapefile`, `AbstractGeometry` and `AbstractGeometryCollection` abstract classes
+- Custom *DBF* charset support
+- Support for emulated `null` values in *DBF* files
+- Reading optional *DBT* files (support for `MEMO` fields)
+- Reading optional *CPG* and *CST* files
+- Constructor options constants:
+    - `Shapefile::OPTION_INVERT_POLYGONS_ORIENTATION`
+    - `Shapefile::OPTION_SUPPRESS_Z`
+    - `Shapefile::OPTION_SUPPRESS_M`
+    - `Shapefile::OPTION_DBF_FORCE_ALL_CAPS`
+    - `Shapefile::OPTION_NULL_PADDING_CHAR`
+    - `Shapefile::OPTION_FORCE_MULTIPART_GEOMETRIES`
+    - `Shapefile::OPTION_IGNORE_SHAPEFILE_BBOX`
+    - `Shapefile::OPTION_IGNORE_GEOMETRIES_BBOXES`
+    - `Shapefile::OPTION_DBF_IGNORED_FIELDS`
+    - `Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES`
+- File types constants:
+    - `Shapefile::FILE_SHP`
+    - `Shapefile::FILE_SHX`
+    - `Shapefile::FILE_DBF`
+    - `Shapefile::FILE_DBT`
+    - `Shapefile::FILE_PRJ`
+    - `Shapefile::FILE_CPG`
+    - `Shapefile::FILE_CST`
+- Shape types constants:
+    - `Shapefile::SHAPE_TYPE_NULL`
+    - `Shapefile::SHAPE_TYPE_POINT`
+    - `Shapefile::SHAPE_TYPE_POLYLINE`
+    - `Shapefile::SHAPE_TYPE_POLYGON`
+    - `Shapefile::SHAPE_TYPE_MULTIPOINT`
+    - `Shapefile::SHAPE_TYPE_POINTZ`
+    - `Shapefile::SHAPE_TYPE_POLYLINEZ`
+    - `Shapefile::SHAPE_TYPE_POLYGONZ`
+    - `Shapefile::SHAPE_TYPE_MULTIPOINTZ`
+    - `Shapefile::SHAPE_TYPE_POINTM`
+    - `Shapefile::SHAPE_TYPE_POLYLINEM`
+    - `Shapefile::SHAPE_TYPE_POLYGONM`
+    - `Shapefile::SHAPE_TYPE_MULTIPOINTM`
+- *DBF* fields types constants:
+    - `Shapefile::DBF_TYPE_CHAR`
+    - `Shapefile::DBF_TYPE_DATE`
+    - `Shapefile::DBF_TYPE_LOGICAL`
+    - `Shapefile::DBF_TYPE_MEMO`
+    - `Shapefile::DBF_TYPE_NUMERIC`
+- Error types constants:
+    - `Shapefile::ERR_UNDEFINED`
+    - `Shapefile::ERR_FILE_MISSING`
+    - `Shapefile::ERR_FILE_EXISTS`
+    - `Shapefile::ERR_FILE_OPEN`
+    - `Shapefile::ERR_SHP_TYPE_NOT_SUPPORTED`
+    - `Shapefile::ERR_SHP_TYPE_NOT_SET`
+    - `Shapefile::ERR_SHP_TYPE_ALREADY_SET`
+    - `Shapefile::ERR_SHP_GEOMETRY_TYPE_NOT_COMPATIBLE`
+    - `Shapefile::ERR_SHP_MISMATCHED_BBOX`
+    - `Shapefile::ERR_SHP_FILE_ALREADY_INITIALIZED`
+    - `Shapefile::ERR_SHP_WRONG_RECORD_TYPE`
+    - `Shapefile::ERR_DBF_FILE_NOT_VALID`
+    - `Shapefile::ERR_DBF_MISMATCHED_FILE`
+    - `Shapefile::ERR_DBF_EOF_REACHED`
+    - `Shapefile::ERR_DBF_MAX_FIELD_COUNT_REACHED`
+    - `Shapefile::ERR_DBF_FIELD_NAME_NOT_UNIQUE`
+    - `Shapefile::ERR_DBF_FIELD_NAME_NOT_VALID`
+    - `Shapefile::ERR_DBF_FIELD_TYPE_NOT_VALID`
+    - `Shapefile::ERR_DBF_FIELD_SIZE_NOT_VALID`
+    - `Shapefile::ERR_DBF_FIELD_DECIMALS_NOT_VALID`
+    - `Shapefile::ERR_DBF_CHARSET_CONVERSION`
+    - `Shapefile::ERR_GEOM_NOT_EMPTY`
+    - `Shapefile::ERR_GEOM_COORD_VALUE_NOT_VALID`
+    - `Shapefile::ERR_GEOM_MISMATCHED_DIMENSIONS`
+    - `Shapefile::ERR_GEOM_MISMATCHED_BBOX`
+    - `Shapefile::ERR_GEOM_SHAPEFILE_NOT_SET`
+    - `Shapefile::ERR_GEOM_SHAPEFILE_ALREADY_SET`
+    - `Shapefile::ERR_GEOM_POINT_NOT_VALID`
+    - `Shapefile::ERR_GEOM_POLYGON_AREA_TOO_SMALL`
+    - `Shapefile::ERR_GEOM_POLYGON_NOT_VALID`
+    - `Shapefile::ERR_INPUT_RECORD_NOT_FOUND`
+    - `Shapefile::ERR_INPUT_FIELD_NOT_FOUND`
+    - `Shapefile::ERR_INPUT_GEOMETRY_TYPE_NOT_VALID`
+    - `Shapefile::ERR_INPUT_GEOMETRY_INDEX_NOT_VALID`
+    - `Shapefile::ERR_INPUT_ARRAY_NOT_VALID`
+    - `Shapefile::ERR_INPUT_WKT_NOT_VALID`
+    - `Shapefile::ERR_INPUT_GEOJSON_NOT_VALID`
+
+### Changed
+- Folder structure under `src/` reflects namespaces hierarchy
+- Namespace and class names case normalized
+- Bitwise constructor flags replaced by associative array
+- Default output polygons orientation is now opposite to ESRI Shapefile specs and compliant to OGC Simple Features
+- Use of `iconv()` instead of `utf8_encode()` for charset conversion
+- `ShapefileException::getErrorType()` method returns one of `Shapefile::ERR_*` constant values
+- `ShapefileReader::fetchRecord()` method replaces `ShapefileReader::getRecord()` and returns an object
+- Order of bounding boxes associative arrays elements
+
+### Fixed
+- Stricter invalid date format detection
+- Logical (`bool`) not initialized values (`null`) detection
+
+### Removed
+- `ShapefileReader` public methods:
+  - `setDefaultGeometryFormat()`
+  - `readRecord()`
+- `ShapefileReader` protected method `init()`
+- `Shapefile` constants:
+    - `Shapefile::FLAG_SUPPRESS_Z`
+    - `Shapefile::FLAG_SUPPRESS_M`
+    - `Shapefile::GEOMETRY_ARRAY`
+    - `Shapefile::GEOMETRY_WKT`
+    - `Shapefile::GEOMETRY_GEOJSON_GEOMETRY`
+    - `Shapefile::GEOMETRY_GEOJSON_FEATURE`
+    - `Shapefile::GEOMETRY_BOTH`
+- `Shapefile` numeric error codes
+
 
 
 ## v2.4.3 - 2018-04-07
