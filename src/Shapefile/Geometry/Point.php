@@ -34,7 +34,7 @@ use Shapefile\ShapefileException;
  *          "coordinates": [x, y, z] / [x, y, m] / [x, y, z, m]
  *      }
  */
-class Point extends AbstractGeometry
+class Point extends Geometry
 {
     /**
      * WKT and GeoJSON basetypes

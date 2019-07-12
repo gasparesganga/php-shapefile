@@ -18,7 +18,7 @@ use Shapefile\Geometry\MultiLinestring;
 use Shapefile\Geometry\Polygon;
 use Shapefile\Geometry\MultiPolygon;
 
-class ShapefileReader extends AbstractShapefile implements \Iterator
+class ShapefileReader extends Shapefile implements \Iterator
 {
     /**
      * @var array   Array of files. Every files is represented as an associative array:

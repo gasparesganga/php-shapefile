@@ -47,7 +47,7 @@ use Shapefile\ShapefileException;
  *          ]
  *      }
  */
-class MultiLinestring extends AbstractGeometryCollection
+class MultiLinestring extends GeometryCollection
 {
     /**
      * WKT and GeoJSON basetypes, collection class type

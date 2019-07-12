@@ -15,14 +15,14 @@ use Shapefile\Shapefile;
 use Shapefile\ShapefileException;
 
 /**
- * Abstract base class for all Geometry collections.
+ * Abstract base class for all Geometry Collections.
  * It defines some common public methods and some helper protected functions.
  */
-abstract class AbstractGeometryCollection extends AbstractGeometry
+abstract class GeometryCollection extends Geometry
 {
     /**
-     * @var AbstractGeometry[]  The actual geometries in the collection.
-     *                          They are enforced to be all of the same type by addGeometry() method.
+     * @var Geometry[]      The actual geometries in the collection.
+     *                      They are enforced to be all of the same type by addGeometry() method.
      */
     protected $geometries = [];
     
@@ -42,7 +42,7 @@ abstract class AbstractGeometryCollection extends AbstractGeometry
     /**
      * Constructor.
      * 
-     * @param   AbstractGeometry[]  $geometries     Optional array of geometries to initialize the collection.
+     * @param   Geometry[]      $geometries     Optional array of geometries to initialize the collection.
      */
     public function __construct(array $geometries = null)
     {
@@ -96,7 +96,7 @@ abstract class AbstractGeometryCollection extends AbstractGeometry
      * Adds a Geometry to the collection.
      * It enforces all geometries to be of the same type.
      *
-     * @param   AbstractGeometry    $Geometry
+     * @param   Geometry    $Geometry
      */
     protected function addGeometry($Geometry)
     {
@@ -119,7 +119,7 @@ abstract class AbstractGeometryCollection extends AbstractGeometry
      * 
      * @param   integer $index      The index of the Geometry.
      *
-     * @return  AbstractGeometry
+     * @return  Geometry
      */
     protected function getGeometry($index)
     {
@@ -132,7 +132,7 @@ abstract class AbstractGeometryCollection extends AbstractGeometry
     /**
      * Gets all the geometries in the collection.
      * 
-     * @return  AbstractGeometry[]
+     * @return  Geometry[]
      */
     protected function getGeometries()
     {

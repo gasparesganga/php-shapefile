@@ -41,7 +41,7 @@ use Shapefile\ShapefileException;
  *          ]
  *      }
  */
-class MultiPoint extends AbstractGeometryCollection
+class MultiPoint extends GeometryCollection
 {
     /**
      * WKT and GeoJSON basetypes, collection class type

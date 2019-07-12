@@ -18,7 +18,7 @@ use Shapefile\ShapefileException;
  * Abstract base class for all geometries.
  * It defines some common public methods and some helper protected functions.
  */
-abstract class AbstractGeometry
+abstract class Geometry
 {
     /**
      * @var array|null      Custom bounding box set with setCustomBoundingBox() method.
@@ -32,10 +32,10 @@ abstract class AbstractGeometry
     private $data = [];
     
     /**
-     * @var AbstractShapefile|null  Shapefile the Geometry belongs to.
-     *                              It is used only for geometries that belong to a Shapefile and
-     *                              NOT for the ones contained in a collection.
-     *                              The structure of the Shapefile will dictate the structure of Geometry data.
+     * @var Shapefile|null      Shapefile the Geometry belongs to.
+     *                          It is used only for geometries that belong to a Shapefile and
+     *                          NOT for the ones contained in a collection.
+     *                          The structure of the Shapefile will dictate the structure of Geometry data.
      */
     private $Shapefile = null;
     
@@ -119,7 +119,7 @@ abstract class AbstractGeometry
     
     /**
      * Gets the Shape base type of the Geometry.
-     * This is not intended for users, but AbstractShapefile requires it for internal mechanisms.
+     * This is not intended for users, but Shapefile requires it for internal mechanisms.
      *
      * @internal
      * 
@@ -286,13 +286,13 @@ abstract class AbstractGeometry
     /**
      * Sets the Shapefile the Geometry belongs to.
      * It can be called just once for an instance of the class.
-     * This is not intended for users, but AbstractShapefile requires it for internal mechanisms.
+     * This is not intended for users, but Shapefile requires it for internal mechanisms.
      *
      * @internal
      *
-     * @param   AbstractShapefile   $Shapefile
+     * @param   Shapefile   $Shapefile
      */
-    public function setShapefile(\Shapefile\AbstractShapefile $Shapefile)
+    public function setShapefile(\Shapefile\Shapefile $Shapefile)
     {
         if ($this->Shapefile !== null) {
             throw new ShapefileException(Shapefile::ERR_GEOM_SHAPEFILE_ALREADY_SET);

@@ -54,7 +54,7 @@ use Shapefile\ShapefileException;
  *          ]
  *      }
  */
-class MultiPolygon extends AbstractGeometryCollection
+class MultiPolygon extends GeometryCollection
 {
     /**
      * WKT and GeoJSON basetypes, collection class type
