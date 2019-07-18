@@ -18,19 +18,19 @@ use Shapefile\ShapefileException;
  * MultiPolygon Geometry.
  *
  *  - Array: [
- *      "numparts"  => n
- *      "parts"     => [
+ *      [numparts]  => int
+ *      [parts]     => [
  *          [
- *              "numrings"  => n
- *              "rings"     => [
+ *              [numrings]  => int
+ *              [rings]     => [
  *                  [
- *                      "numpoints" => n
- *                      "points"    => [
+ *                      [numpoints] => int
+ *                      [points]    => [
  *                          [
- *                              "x" => x
- *                              "y" => y
- *                              "z" => z
- *                              "m" => m
+ *                              [x] => float
+ *                              [y] => float
+ *                              [z] => float
+ *                              [m] => float/bool
  *                          ]
  *                      ]
  *                  ]
@@ -64,7 +64,26 @@ class MultiPolygon extends GeometryCollection
     const COLLECTION_CLASS  = 'Polygon';
     
     
+    /**
+     * @var bool    Flag representing whether a closed rings check must be performed.
+     */
+    private $flag_enforce_closed_rings = false;
+    
+    
     /////////////////////////////// PUBLIC ///////////////////////////////
+    /**
+     * Constructor.
+     * 
+     * @param   Polygon[]   $polygons                   Optional array of polygons to initialize the multipolygon.
+     * @param   bool        $flag_enforce_closed_rings  Optional flag to enforce closed rings check.
+     */
+    public function __construct(array $polygons = null, $flag_enforce_closed_rings = true)
+    {
+        $this->flag_enforce_closed_rings = $flag_enforce_closed_rings;
+        parent::__construct($polygons);
+    }
+    
+    
     public function initFromArray($array)
     {
         $this->checkInit();
@@ -75,7 +94,7 @@ class MultiPolygon extends GeometryCollection
             if (!isset($part['rings']) || !is_array($part['rings'])) {
                 throw new ShapefileException(Shapefile::ERR_INPUT_ARRAY_NOT_VALID);
             }
-            $Polygon = new Polygon();
+            $Polygon = new Polygon(null, $this->flag_enforce_closed_rings);
             foreach ($part['rings'] as $part) {
                 if (!isset($part['points']) || !is_array($part['points'])) {
                     throw new ShapefileException(Shapefile::ERR_INPUT_ARRAY_NOT_VALID);
@@ -100,7 +119,7 @@ class MultiPolygon extends GeometryCollection
             $force_z = $this->wktIsZ($wkt);
             $force_m = $this->wktIsM($wkt);
             foreach (explode(')),((', substr($this->wktExtractData($wkt), 2, -2)) as $part) {
-                $Polygon = new Polygon();
+                $Polygon = new Polygon(null, $this->flag_enforce_closed_rings);
                 foreach (explode('),(', $part) as $ring) {
                     $Linestring = new Linestring();
                     foreach (explode(',', $ring) as $wkt_coordinates) {
@@ -122,7 +141,7 @@ class MultiPolygon extends GeometryCollection
         if ($geojson !== null) {
             $force_m = $this->geojsonIsM($geojson['type']);
             foreach ($geojson['coordinates'] as $part) {
-                $Polygon = new Polygon();
+                $Polygon = new Polygon(null, $this->flag_enforce_closed_rings);
                 foreach ($part as $ring) {
                     $Linestring = new Linestring();
                     foreach ($ring as $geojson_coordinates) {
@@ -172,7 +191,7 @@ class MultiPolygon extends GeometryCollection
         return $ret;
     }
     
-    public function getGeoJSON($flagBBox = true, $flagFeature = false)
+    public function getGeoJSON($flag_bbox = true, $flag_feature = false)
     {
         if ($this->isEmpty()) {
             return 'null';
@@ -189,7 +208,7 @@ class MultiPolygon extends GeometryCollection
             }
             $coordinates[] = $parts;
         }
-        return $this->geojsonPackOutput($coordinates, $flagBBox, $flagFeature);
+        return $this->geojsonPackOutput($coordinates, $flag_bbox, $flag_feature);
     }
     
     
@@ -200,7 +219,7 @@ class MultiPolygon extends GeometryCollection
      */
     public function addPolygon(Polygon $Polygon)
     {
-        return $this->addGeometry($Polygon);
+        $this->addGeometry($Polygon);
     }
     
     /**
@@ -242,7 +261,25 @@ class MultiPolygon extends GeometryCollection
     }
     
     
-    /****************************** PROTECTED ******************************/
+    /////////////////////////////// PROTECTED ///////////////////////////////
+    /**
+     * Enforces all linestrings forming polygons in the collection to be closed rings.
+     * 
+     * @param   Polygon     $Polygon
+     */
+    protected function addGeometry(Polygon $Polygon)
+    {
+        parent::addGeometry($Polygon);
+        if ($this->flag_enforce_closed_rings) {
+            foreach ($Polygon->getRings() as $Linestring) {
+                if (!$Linestring->isClosedRing()) {
+                    throw new ShapefileException(Shapefile::ERR_GEOM_POLYGON_OPEN_RING);
+                }
+            }
+        }
+    }
+    
+    
     protected function getWKTBasetype()
     {
         return static::WKT_BASETYPE;
@@ -257,5 +294,5 @@ class MultiPolygon extends GeometryCollection
     {
         return __NAMESPACE__ . '\\' . static::COLLECTION_CLASS;
     }
-    
+       
 }

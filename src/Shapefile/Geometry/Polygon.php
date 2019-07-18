@@ -18,16 +18,16 @@ use Shapefile\ShapefileException;
  * Polygon Geometry.
  *
  *  - Array: [
- *      "numrings"  => n
- *      "rings"     => [
+ *      [numrings]  => int
+ *      [rings]     => [
  *          [
- *              "numpoints" => n
- *              "points"    => [
+ *              [numpoints] => int
+ *              [points]    => [
  *                  [
- *                      "x" => x
- *                      "y" => y
- *                      "z" => z
- *                      "m" => m
+ *                      [x] => float
+ *                      [y] => float
+ *                      [z] => float
+ *                      [m] => float/bool
  *                  ]
  *              ]
  *          ]
@@ -57,7 +57,26 @@ class Polygon extends MultiLinestring
     const COLLECTION_CLASS  = 'Linestring';
     
     
+    /**
+     * @var bool    Flag representing whether a closed rings check must be performed.
+     */
+    private $flag_enforce_closed_rings = false;
+    
+    
     /////////////////////////////// PUBLIC ///////////////////////////////
+    /**
+     * Constructor.
+     * 
+     * @param   Linestring[]    $linestrings                Optional array of linestrings to initialize the polygon.
+     * @param   bool            $flag_enforce_closed_rings  Optional flag to enforce closed rings check.
+     */
+    public function __construct(array $linestrings = null, $flag_enforce_closed_rings = true)
+    {
+        $this->flag_enforce_closed_rings = $flag_enforce_closed_rings;
+        parent::__construct($linestrings);
+    }
+    
+    
     public function initFromArray($array)
     {
         $this->checkInit();
@@ -74,7 +93,7 @@ class Polygon extends MultiLinestring
                 $Point->initFromArray($coordinates);
                 $Linestring->addPoint($Point);
             }
-            $this->addLinestring($Linestring);
+            $this->addRing($Linestring);
         }
     }
     
@@ -99,7 +118,7 @@ class Polygon extends MultiLinestring
      */
     public function addRing(Linestring $Linestring)
     {
-        return $this->addGeometry($Linestring);
+        $this->addGeometry($Linestring);
     }
     
     /**
@@ -145,7 +164,7 @@ class Polygon extends MultiLinestring
     }
     
     /**
-     * Gets the polygon inners rings.
+     * Gets polygon inners rings.
      * 
      * @return  Linestring[]
      */
@@ -162,6 +181,20 @@ class Polygon extends MultiLinestring
     
     
     /////////////////////////////// PROTECTED ///////////////////////////////
+    /**
+     * Enforces all linestrings in the collection to be closed rings.
+     * 
+     * @param   Linestring  $Linestring
+     */
+    protected function addGeometry(Linestring $Linestring)
+    {
+        parent::addGeometry($Linestring);
+        if ($this->flag_enforce_closed_rings && !$Linestring->isClosedRing()) {
+            throw new ShapefileException(Shapefile::ERR_GEOM_POLYGON_OPEN_RING);
+        }
+    }
+    
+    
     protected function getWKTBasetype()
     {
         return static::WKT_BASETYPE;

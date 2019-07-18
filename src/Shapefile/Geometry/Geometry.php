@@ -102,12 +102,12 @@ abstract class Geometry
     /**
      * Gets the Geometry as GeoJSON.
      *
-     * @param   bool    $flagBBox       If true include the bounding box in the GeoJSON output.
-     * @param   bool    $flagFeature    If true output a GeoJSON Feature with all the data.
+     * @param   bool    $flag_bbox      If true include the bounding box in the GeoJSON output.
+     * @param   bool    $flag_feature   If true output a GeoJSON Feature with all the data.
      *
      * @return  string
      */
-    abstract public function getGeoJSON($flagBBox, $flagFeature);
+    abstract public function getGeoJSON($flag_bbox, $flag_feature);
     
     /**
      * Gets Geometry bounding box.
@@ -183,6 +183,16 @@ abstract class Geometry
     public function isDeleted()
     {
         return $this->flag_deleted;
+    }
+    
+    /**
+     * Sets the state of the Deleted flag.
+     * 
+     * @param   bool    $value
+     */
+    public function setFlagDeleted($value)
+    {
+        $this->flag_deleted = $value;
     }
     
     
@@ -270,18 +280,7 @@ abstract class Geometry
             $this->data[$field] = $value;
         }
     }
-    
-    
-    /**
-     * Sets the state of the Deleted flag.
-     * 
-     * @param   bool    $value
-     */
-    public function setFlagDeleted($value)
-    {
-        $this->flag_deleted = $value;
-    }
-    
+        
     
     /**
      * Sets the Shapefile the Geometry belongs to.
@@ -535,18 +534,18 @@ abstract class Geometry
      * Builds valid GeoJSON starting from raw coordinates.
      *
      * @param   array   $coordinates    GeoJSON coordinates array.
-     * @param   bool    $flagBBox       If true include the bounding box in the GeoJSON output.
-     * @param   bool    $flagFeature    If true output a GeoJSON Feature with all the data.
+     * @param   bool    $flag_bbox      If true include the bounding box in the GeoJSON output.
+     * @param   bool    $flag_feature   If true output a GeoJSON Feature with all the data.
      *
      * @return  array
      */
-    protected function geojsonPackOutput($coordinates, $flagBBox, $flagFeature)
+    protected function geojsonPackOutput($coordinates, $flag_bbox, $flag_feature)
     {
         $ret = [];
         // Type
         $ret['type'] = $this->getGeoJSONBasetype() . ($this->isM() ? 'M' : '');
         // Bounding box
-        if ($flagBBox) {
+        if ($flag_bbox) {
             $ret['bbox'] = [];
             $bbox = $this->getBoundingBox();
             $ret['bbox'][] = $bbox['xmin'];
@@ -569,7 +568,7 @@ abstract class Geometry
         // Coordinates
         $ret['coordinates'] = $coordinates;
         // Feature
-        if ($flagFeature) {
+        if ($flag_feature) {
             $ret = [
                 'type'          => 'Feature',
                 'geometry'      => $ret,

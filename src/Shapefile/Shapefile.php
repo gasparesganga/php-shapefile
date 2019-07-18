@@ -64,6 +64,14 @@ abstract class Shapefile
     const OPTION_DBF_NULL_PADDING_CHAR_DEFAULT = null;
     
     /**
+     * Enforce all polygons rings to be closed.
+     * ShapefileReader
+     * @var bool
+     */
+    const OPTION_ENFORCE_POLYGON_CLOSED_RINGS = 'OPTION_ENFORCE_POLYGON_CLOSED_RINGS';
+    const OPTION_ENFORCE_POLYGON_CLOSED_RINGS_DEFAULT = true;
+    
+    /**
      * Reads all Geometries as Multi.
      * ShapefileReader
      * @var bool
@@ -261,6 +269,9 @@ abstract class Shapefile
     const ERR_GEOM_POINT_NOT_VALID = 'ERR_GEOM_POINT_NOT_VALID';
     const ERR_GEOM_POINT_NOT_VALID_MESSAGE = "A Point can be either EMPTY or al least 2D";
     
+    const ERR_GEOM_POLYGON_OPEN_RING = 'ERR_GEOM_POLYGON_OPEN_RING';
+    const ERR_GEOM_POLYGON_OPEN_RING_MESSAGE = "Polygons cannot contain open rings";
+    
     const ERR_GEOM_POLYGON_AREA_TOO_SMALL = 'ERR_GEOM_POLYGON_AREA_TOO_SMALL';
     const ERR_GEOM_POLYGON_AREA_TOO_SMALL_MESSAGE = "Polygon Area too small, cannot determine vertices orientation";
     
@@ -314,7 +325,7 @@ abstract class Shapefile
     /**
      * @var string|null     DBF charset.
      */
-    private $dbf_charset = null;
+    private $charset = null;
     
     /**
      * @var array   Fields definition.
@@ -503,20 +514,20 @@ abstract class Shapefile
      *
      * @return  string
      */
-    public function getDBFCharset()
+    public function getCharset()
     {
-        return $this->dbf_charset;
+        return $this->charset ?: Shapefile::DEFAULT_DBF_CHARSET;
     }
     
     /**
      * Sets or resets DBF charset.
      *
-     * @param   string  $charset    Name of the charset.
+     * @param   mixed   $charset    Name of the charset.
      *                              Pass a falsy value (ie. false or "") to reset it to default.
      */
-    public function setDBFCharset($charset)
+    public function setCharset($charset)
     {
-        $this->dbf_charset = $charset ?: Shapefile::DEFAULT_DBF_CHARSET;
+        $this->charset = $charset ?: Shapefile::DEFAULT_DBF_CHARSET;
     }
     
     

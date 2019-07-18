@@ -18,13 +18,13 @@ use Shapefile\ShapefileException;
  * Linestring Geometry.
  *
  *  - Array: [
- *      "numpoints" => n
- *      "points"    => [
+ *      [numpoints] => int
+ *      [points]    => [
  *          [
- *              "x" => x
- *              "y" => y
- *              "z" => z
- *              "m" => m
+ *              [x] => float
+ *              [y] => float
+ *              [z] => float
+ *              [m] => float/bool
  *          ]
  *      ]
  *  ]
@@ -51,10 +51,23 @@ class Linestring extends MultiPoint
     
     
     /////////////////////////////// PUBLIC ///////////////////////////////
+    /**
+     * Checks whether the linestring is a closed ring or not.
+     * A closed ring has at least 4 vertices and the first and last ones must be the same.
+     * 
+     * @return  bool
+     */
+    public function isClosedRing()
+    {
+        return $this->getNumPoints() >= 4 && $this->getPoint(0) == $this->getPoint($this->getNumPoints() - 1);
+    }
+    
+    
     public function getSHPBasetype()
     {
         return Shapefile::SHAPE_TYPE_POLYLINE;
     }
+    
     
     /////////////////////////////// PROTECTED ///////////////////////////////
     protected function getWKTBasetype()

@@ -18,10 +18,10 @@ use Shapefile\ShapefileException;
  * Point Geometry.
  *
  *  - Array: [
- *      "x" => x
- *      "y" => y
- *      "z" => z
- *      "m" => m
+ *      [x] => float
+ *      [y] => float
+ *      [z] => float
+ *      [m] => float/bool
  *  ]
  *  
  *  - WKT:
@@ -141,12 +141,12 @@ class Point extends Geometry
         return $ret;
     }
     
-    public function getGeoJSON($flagBBox = false, $flagFeature = false)
+    public function getGeoJSON($flag_bbox = false, $flag_feature = false)
     {
         if ($this->isEmpty()) {
             return 'null';
         }
-        return $this->geojsonPackOutput($this->getRawArray(), $flagBBox, $flagFeature);
+        return $this->geojsonPackOutput($this->getRawArray(), $flag_bbox, $flag_feature);
     }
     
     public function getBoundingBox()

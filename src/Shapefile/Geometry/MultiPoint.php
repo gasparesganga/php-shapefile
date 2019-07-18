@@ -18,13 +18,13 @@ use Shapefile\ShapefileException;
  * MultiPoint Geometry.
  *
  *  - Array: [
- *      "numpoints" => n
- *      "points"    => [
+ *      [numpoints] => int
+ *      [points]    => [
  *          [
- *              "x" => x
- *              "y" => y
- *              "z" => z
- *              "m" => m
+ *              [x] => float
+ *              [y] => float
+ *              [z] => float
+ *              [m] => float/bool
  *          ]
  *      ]
  *  ]
@@ -120,7 +120,7 @@ class MultiPoint extends GeometryCollection
         return $ret;
     }
     
-    public function getGeoJSON($flagBBox = true, $flagFeature = false)
+    public function getGeoJSON($flag_bbox = true, $flag_feature = false)
     {
         if ($this->isEmpty()) {
             return 'null';
@@ -129,7 +129,7 @@ class MultiPoint extends GeometryCollection
         foreach ($this->getPoints() as $Point) {
             $coordinates[] = $Point->getRawArray();
         }
-        return $this->geojsonPackOutput($coordinates, $flagBBox, $flagFeature);
+        return $this->geojsonPackOutput($coordinates, $flag_bbox, $flag_feature);
     }
     
     
@@ -140,7 +140,7 @@ class MultiPoint extends GeometryCollection
      */
     public function addPoint(Point $Point)
     {
-        return $this->addGeometry($Point);
+        $this->addGeometry($Point);
     }
     
     /**

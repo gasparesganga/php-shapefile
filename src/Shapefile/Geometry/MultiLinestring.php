@@ -18,16 +18,16 @@ use Shapefile\ShapefileException;
  * MultiLinestring Geometry.
  *
  *  - Array: [
- *      "numparts"  => n
- *      "parts"     => [
+ *      [numparts]  => int
+ *      [parts]     => [
  *          [
- *              "numpoints" => n
- *              "points"    => [
+ *              [numpoints] => int
+ *              [points]    => [
  *                  [
- *                      "x" => x
- *                      "y" => y
- *                      "z" => z
- *                      "m" => m
+ *                      [x] => float
+ *                      [y] => float
+ *                      [z] => float
+ *                      [m] => float/bool
  *                  ]
  *              ]
  *          ]
@@ -145,7 +145,7 @@ class MultiLinestring extends GeometryCollection
         return $ret;
     }
     
-    public function getGeoJSON($flagBBox = true, $flagFeature = false)
+    public function getGeoJSON($flag_bbox = true, $flag_feature = false)
     {
         if ($this->isEmpty()) {
             return 'null';
@@ -158,7 +158,7 @@ class MultiLinestring extends GeometryCollection
             }
             $coordinates[] = $parts;
         }
-        return $this->geojsonPackOutput($coordinates, $flagBBox, $flagFeature);
+        return $this->geojsonPackOutput($coordinates, $flag_bbox, $flag_feature);
     }
     
     
@@ -169,7 +169,7 @@ class MultiLinestring extends GeometryCollection
      */
     public function addLinestring(Linestring $Linestring)
     {
-        return $this->addGeometry($Linestring);
+        $this->addGeometry($Linestring);
     }
     
     /**
@@ -192,6 +192,16 @@ class MultiLinestring extends GeometryCollection
     public function getLinestrings()
     {
         return $this->getGeometries();
+    }
+    
+    /**
+     * Gets the number of linestrings in the collection.
+     * 
+     * @return  integer
+     */
+    public function getNumLinestrings()
+    {
+        return $this->getNumGeometries();
     }
     
     

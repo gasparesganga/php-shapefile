@@ -124,6 +124,7 @@ class ShapefileReader extends Shapefile implements \Iterator
             Shapefile::OPTION_SUPPRESS_M,
             Shapefile::OPTION_DBF_FORCE_ALL_CAPS,
             Shapefile::OPTION_DBF_NULL_PADDING_CHAR,
+            Shapefile::OPTION_ENFORCE_POLYGON_CLOSED_RINGS,
             Shapefile::OPTION_FORCE_MULTIPART_GEOMETRIES,
             Shapefile::OPTION_IGNORE_SHAPEFILE_BBOX,
             Shapefile::OPTION_IGNORE_GEOMETRIES_BBOXES,
@@ -142,9 +143,9 @@ class ShapefileReader extends Shapefile implements \Iterator
         
         // CPG and CST (DBF charset): CPG file takes precedence over CST one
         if (isset($this->files[Shapefile::FILE_CPG])) {
-            $this->setDBFCharset($this->readString(Shapefile::FILE_CPG, $this->files[Shapefile::FILE_CPG]['size']));
+            $this->setCharset($this->readString(Shapefile::FILE_CPG, $this->files[Shapefile::FILE_CPG]['size']));
         } elseif (isset($this->files[Shapefile::FILE_CST])) {
-            $this->setDBFCharset($this->readString(Shapefile::FILE_CST, $this->files[Shapefile::FILE_CST]['size']));
+            $this->setCharset($this->readString(Shapefile::FILE_CST, $this->files[Shapefile::FILE_CST]['size']));
         }
         
         // Read headers
@@ -238,7 +239,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Gets current record and moves the cursor to the next one.
      *
-     * @return  AbstractGeometry
+     * @return  Geometry
      */
     public function fetchRecord()
     {
@@ -490,7 +491,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads current record in both SHP and DBF files and returns a Geometry.
      *
-     * @return  AbstractGeometry
+     * @return  Geometry
      */
     private function readCurrentRecord()
     {
@@ -541,7 +542,7 @@ class ShapefileReader extends Shapefile implements \Iterator
             if ($f['ignored']) {
                 $this->setFileOffset(Shapefile::FILE_DBF, $f['size']);
             } else {
-                $value = $this->decodeFieldValue($f['name'], $this->readString(Shapefile::FILE_DBF, $f['size'], $this->getDBFCharset()));
+                $value = $this->decodeFieldValue($f['name'], $this->readString(Shapefile::FILE_DBF, $f['size'], $this->getCharset()));
                 $Geometry->setData($f['name'], $value);
             }
         }
@@ -585,7 +586,7 @@ class ShapefileReader extends Shapefile implements \Iterator
                         if (ftell($this->files['dbt']['handle']) >= $this->files['dbt']['size']) {
                             throw new ShapefileException(Shapefile::ERR_DBT_EOF_REACHED);
                         }
-                        $value .= $this->readString(Shapefile::FILE_DBT, Shapefile::DBT_BLOCK_SIZE, $this->getDBFCharset());
+                        $value .= $this->readString(Shapefile::FILE_DBT, Shapefile::DBT_BLOCK_SIZE, $this->getCharset());
                     } while (ord(substr($value, -1)) != Shapefile::DBT_FIELD_TERMINATOR && ord(substr($value, -2, 1)) != Shapefile::DBT_FIELD_TERMINATOR);
                     $value = substr($value, 0, -2); 
                     break;
@@ -696,7 +697,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Returns an empty Geometry depending on the base type of the Shapefile.
      *
-     * @return  AbstractGeometry
+     * @return  Geometry
      */
     private function readNull()
     {
@@ -1056,9 +1057,9 @@ class ShapefileReader extends Shapefile implements \Iterator
         // Create Geometry
         if (!$this->getOption(Shapefile::OPTION_FORCE_MULTIPART_GEOMETRIES) && $data['geometry']['numparts'] == 1) {
             $data['geometry'] = $data['geometry']['parts'][0];
-            $Geometry = new Polygon();
+            $Geometry = new Polygon(null, $this->getOption(Shapefile::OPTION_ENFORCE_POLYGON_CLOSED_RINGS));
         } else {
-            $Geometry = new MultiPolygon();
+            $Geometry = new MultiPolygon(null, $this->getOption(Shapefile::OPTION_ENFORCE_POLYGON_CLOSED_RINGS));
         }
         $Geometry->initFromArray($data['geometry']);
         if (!$this->getOption(Shapefile::OPTION_IGNORE_GEOMETRIES_BBOXES)) {
