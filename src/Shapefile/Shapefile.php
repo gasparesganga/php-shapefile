@@ -112,6 +112,14 @@ abstract class Shapefile
     const OPTION_DBF_NULLIFY_INVALID_DATES = 'OPTION_DBF_NULLIFY_INVALID_DATES';
     const OPTION_DBF_NULLIFY_INVALID_DATES_DEFAULT = true;
     
+    /**
+     * Converts from input charset to UTF-8 all strings read from DBF files.
+     * ShapefileReader
+     * @var bool
+     */
+    const OPTION_DBF_CONVERT_TO_UTF8 = 'OPTION_DBF_CONVERT_TO_UTF8';
+    const OPTION_DBF_CONVERT_TO_UTF8_DEFAULT = true;
+    
     
     /** File types */
     const FILE_SHP  = 'shp';
@@ -162,6 +170,7 @@ abstract class Shapefile
     const DBF_TYPE_LOGICAL  = 'L';
     const DBF_TYPE_MEMO     = 'M';
     const DBF_TYPE_NUMERIC  = 'N';
+    const DBF_TYPE_FLOAT    = 'F';
     
     
     /** Return format types */
@@ -590,13 +599,28 @@ abstract class Shapefile
      * @param   string  $name               Name of the field. Maximum 10 characters.
      *                                      Only letters, numbers and underscores are allowed.
      * @param   integer $size               Lenght of the field, between 1 and 254 characters.
-     * @param   integer $decimals           Optional number of decimal digits for numeric type.
+     * @param   integer $decimals           Optional number of decimal digits.
      * @param   bool    $flag_sanitize_name Optional flag to automatically replace illegal characters
      *                                      in the name with underscores. Defaults to true.
      */
     public function addNumericField($name, $size, $decimals = 0, $flag_sanitize_name = true)
     {
         $this->addField($name, Shapefile::DBF_TYPE_NUMERIC, $size, $decimals);
+    }
+    
+    /**
+     * Adds floating point to the Shapefile definition.
+     * 
+     * @param   string  $name               Name of the field. Maximum 10 characters.
+     *                                      Only letters, numbers and underscores are allowed.
+     * @param   integer $size               Lenght of the field, between 1 and 254 characters.
+     * @param   integer $decimals           Number of decimal digits.
+     * @param   bool    $flag_sanitize_name Optional flag to automatically replace illegal characters
+     *                                      in the name with underscores. Defaults to true.
+     */
+    public function addFloatField($name, $size, $decimals, $flag_sanitize_name = true)
+    {
+        $this->addField($name, Shapefile::DBF_TYPE_FLOAT, $size, $decimals);
     }
     
     /**
@@ -611,6 +635,7 @@ abstract class Shapefile
      *                                      - Shapefile::DBF_TYPE_LOGICAL
      *                                      - Shapefile::DBF_TYPE_MEMO
      *                                      - Shapefile::DBF_TYPE_NUMERIC
+     *                                      - Shapefile::DBF_TYPE_FLOAT
      * @param   integer $size               Lenght of the field, depending on the type.
      * @param   integer $decimals           Optional number of decimal digits for numeric type.
      * @param   bool    $flag_sanitize_name Optional flag to automatically replace illegal characters
@@ -644,7 +669,8 @@ abstract class Shapefile
             $type !== Shapefile::DBF_TYPE_DATE      &&
             $type !== Shapefile::DBF_TYPE_LOGICAL   &&
             $type !== Shapefile::DBF_TYPE_MEMO      &&
-            $type !== Shapefile::DBF_TYPE_NUMERIC
+            $type !== Shapefile::DBF_TYPE_NUMERIC   &&
+            $type !== Shapefile::DBF_TYPE_FLOAT
         ) {
             throw new ShapefileException(Shapefile::ERR_DBF_FIELD_TYPE_NOT_VALID, $type);
         }
@@ -652,12 +678,13 @@ abstract class Shapefile
         // Check size
         $size = intval($size);
         if (
-            ($size < 1)                                            ||
-            ($type == Shapefile::DBF_TYPE_CHAR && $size > 254)     ||
-            ($type == Shapefile::DBF_TYPE_DATE && $size !== 8)     ||
-            ($type == Shapefile::DBF_TYPE_LOGICAL && $size !== 1)  ||
-            ($type == Shapefile::DBF_TYPE_MEMO && $size !== 10)    ||
-            ($type == Shapefile::DBF_TYPE_NUMERIC && $size > 254)
+            ($size < 1)                                             ||
+            ($type == Shapefile::DBF_TYPE_CHAR && $size > 254)      ||
+            ($type == Shapefile::DBF_TYPE_DATE && $size !== 8)      ||
+            ($type == Shapefile::DBF_TYPE_LOGICAL && $size !== 1)   ||
+            ($type == Shapefile::DBF_TYPE_MEMO && $size !== 10)     ||
+            ($type == Shapefile::DBF_TYPE_NUMERIC && $size > 254)   ||
+            ($type == Shapefile::DBF_TYPE_FLOAT && $size > 254)
         ) {
             throw new ShapefileException(Shapefile::ERR_DBF_FIELD_SIZE_NOT_VALID, $size);
         }
@@ -665,11 +692,12 @@ abstract class Shapefile
         // Minimal decimal formal check
         $decimals = intval($decimals);
         if (
-            ($type != Shapefile::DBF_TYPE_NUMERIC && $decimals !== 0)   ||
-            ($decimals < 0)                                             ||
+            ($type != Shapefile::DBF_TYPE_NUMERIC && $type != Shapefile::DBF_TYPE_FLOAT && $decimals !== 0) ||
+            ($type == Shapefile::DBF_TYPE_FLOAT && $decimals === 0)                                         ||
+            ($decimals < 0)                                                                                 ||
             ($decimals > 0 && $decimals > $size - 2)
         ) {
-            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_DECIMALS_NOT_VALID, $decimals);
+            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_DECIMALS_NOT_VALID, $type . ' - ' . $decimals);
         }
         
         // Add field

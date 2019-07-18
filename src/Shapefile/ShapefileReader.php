@@ -130,6 +130,7 @@ class ShapefileReader extends Shapefile implements \Iterator
             Shapefile::OPTION_IGNORE_GEOMETRIES_BBOXES,
             Shapefile::OPTION_DBF_IGNORED_FIELDS,
             Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES,
+            Shapefile::OPTION_DBF_CONVERT_TO_UTF8,
         ], $options);
         
         // Misc
@@ -380,17 +381,20 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads a string of given length from a resource handle and converts it to UTF-8.
      *
-     * @param   string  $file_type      File type (member of $this->files array).
-     * @param   integer $length         Length of the string to read.
-     * @param   string  $charset        Optional input charset of the string.
+     * @param   string  $file_type          File type (member of $this->files array).
+     * @param   integer $length             Length of the string to read.
+     * @param   bool    $flag_utf8_encode   Optional flag to convert output to UTF-8 if OPTION_DBF_CONVERT_TO_UTF8 is enabled.
      *
      * @return  string
      */
-    private function readString($file_type, $length, $charset = Shapefile::DEFAULT_DBF_CHARSET)
+    private function readString($file_type, $length, $flag_utf8_encode = false)
     {
-        $ret = @iconv($charset, 'UTF-8', $this->readData($file_type, 'A*', $length));
-        if ($ret === false) {
-            throw new ShapefileException(Shapefile::ERR_DBF_CHARSET_CONVERSION);
+        $ret = $this->readData($file_type, 'A*', $length);
+        if ($flag_utf8_encode && $this->getOption(Shapefile::OPTION_DBF_CONVERT_TO_UTF8)) {
+            $ret = @iconv($this->getCharset(), 'UTF-8', $ret);
+            if ($ret === false) {
+                throw new ShapefileException(Shapefile::ERR_DBF_CHARSET_CONVERSION);
+            }
         }
         return trim($ret);
     }
@@ -464,7 +468,7 @@ class ShapefileReader extends Shapefile implements \Iterator
         $this->dbf_fields = [];
         $this->setFilePointer(Shapefile::FILE_DBF, 32);
         while (ftell($this->files['dbf']['handle']) < $this->dbf_header_size - 1) {
-            $name       = $this->readString(Shapefile::FILE_DBF, 11);
+            $name       = $this->sanitizeDBFFieldName($this->readString(Shapefile::FILE_DBF, 11));
             $type       = $this->readString(Shapefile::FILE_DBF, 1);
             $this->setFileOffset(Shapefile::FILE_DBF, 4);
             $size       = $this->readChar(Shapefile::FILE_DBF);
@@ -542,7 +546,7 @@ class ShapefileReader extends Shapefile implements \Iterator
             if ($f['ignored']) {
                 $this->setFileOffset(Shapefile::FILE_DBF, $f['size']);
             } else {
-                $value = $this->decodeFieldValue($f['name'], $this->readString(Shapefile::FILE_DBF, $f['size'], $this->getCharset()));
+                $value = $this->decodeFieldValue($f['name'], $this->readString(Shapefile::FILE_DBF, $f['size'], true));
                 $Geometry->setData($f['name'], $value);
             }
         }
@@ -586,7 +590,7 @@ class ShapefileReader extends Shapefile implements \Iterator
                         if (ftell($this->files['dbt']['handle']) >= $this->files['dbt']['size']) {
                             throw new ShapefileException(Shapefile::ERR_DBT_EOF_REACHED);
                         }
-                        $value .= $this->readString(Shapefile::FILE_DBT, Shapefile::DBT_BLOCK_SIZE, $this->getCharset());
+                        $value .= $this->readString(Shapefile::FILE_DBT, Shapefile::DBT_BLOCK_SIZE, true);
                     } while (ord(substr($value, -1)) != Shapefile::DBT_FIELD_TERMINATOR && ord(substr($value, -2, 1)) != Shapefile::DBT_FIELD_TERMINATOR);
                     $value = substr($value, 0, -2); 
                     break;

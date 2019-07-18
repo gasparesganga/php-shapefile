@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - PHPDoc style comments
 - `Shapefile\Geometry` namespace with `Point`, `MultiPoint`, `Linestring`, `MultiLinestring`, `Polygon` and `MultiPolygon` classes
 - `ShapefileReader` and `ShapefileWriter` classes
-- `AbstractShapefile`, `AbstractGeometry` and `AbstractGeometryCollection` abstract classes
+- `Shapefile`, `Geometry` and `GeometryCollection` abstract classes
 - Custom *DBF* charset support
 - Support for emulated `null` values in *DBF* files
 - Reading optional *DBT* files (support for `MEMO` fields)
@@ -24,10 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     - `Shapefile::OPTION_DBF_FORCE_ALL_CAPS`
     - `Shapefile::OPTION_NULL_PADDING_CHAR`
     - `Shapefile::OPTION_FORCE_MULTIPART_GEOMETRIES`
+    - `Shapefile::OPTION_ENFORCE_POLYGON_CLOSED_RINGS`
     - `Shapefile::OPTION_IGNORE_SHAPEFILE_BBOX`
     - `Shapefile::OPTION_IGNORE_GEOMETRIES_BBOXES`
     - `Shapefile::OPTION_DBF_IGNORED_FIELDS`
     - `Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES`
+    - `Shapefile::OPTION_DBF_CONVERT_TO_UTF8`
 - File types constants:
     - `Shapefile::FILE_SHP`
     - `Shapefile::FILE_SHX`
@@ -56,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     - `Shapefile::DBF_TYPE_LOGICAL`
     - `Shapefile::DBF_TYPE_MEMO`
     - `Shapefile::DBF_TYPE_NUMERIC`
+    - `Shapefile::DBF_TYPE_FLOAT`
 - Error types constants:
     - `Shapefile::ERR_UNDEFINED`
     - `Shapefile::ERR_FILE_MISSING`
@@ -85,6 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     - `Shapefile::ERR_GEOM_SHAPEFILE_NOT_SET`
     - `Shapefile::ERR_GEOM_SHAPEFILE_ALREADY_SET`
     - `Shapefile::ERR_GEOM_POINT_NOT_VALID`
+    - `Shapefile::ERR_GEOM_POLYGON_OPEN_RING`
     - `Shapefile::ERR_GEOM_POLYGON_AREA_TOO_SMALL`
     - `Shapefile::ERR_GEOM_POLYGON_NOT_VALID`
     - `Shapefile::ERR_INPUT_RECORD_NOT_FOUND`
