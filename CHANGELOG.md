@@ -15,21 +15,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `Shapefile`, `Geometry` and `GeometryCollection` abstract classes
 - Custom *DBF* charset support
 - Support for emulated `null` values in *DBF* files
-- Reading optional *DBT* files (support for `MEMO` fields)
-- Reading optional *CPG* and *CST* files
+- Reading and writing optional *DBT* files (support for `MEMO` fields)
+- Reading and writing optional *CPG* files
+- `ShapefileException::getDetails()` method
 - Constructor options constants:
-    - `Shapefile::OPTION_INVERT_POLYGONS_ORIENTATION`
-    - `Shapefile::OPTION_SUPPRESS_Z`
-    - `Shapefile::OPTION_SUPPRESS_M`
-    - `Shapefile::OPTION_DBF_FORCE_ALL_CAPS`
-    - `Shapefile::OPTION_NULL_PADDING_CHAR`
-    - `Shapefile::OPTION_FORCE_MULTIPART_GEOMETRIES`
-    - `Shapefile::OPTION_ENFORCE_POLYGON_CLOSED_RINGS`
-    - `Shapefile::OPTION_IGNORE_SHAPEFILE_BBOX`
-    - `Shapefile::OPTION_IGNORE_GEOMETRIES_BBOXES`
-    - `Shapefile::OPTION_DBF_IGNORED_FIELDS`
-    - `Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES`
+    - `Shapefile::OPTION_CPG_ENABLE_FOR_DEFAULT_CHARSET`
     - `Shapefile::OPTION_DBF_CONVERT_TO_UTF8`
+    - `Shapefile::OPTION_DBF_FORCE_ALL_CAPS`
+    - `Shapefile::OPTION_DBF_IGNORED_FIELDS`
+    - `Shapefile::OPTION_DBF_NULL_PADDING_CHAR`
+    - `Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES`
+    - `Shapefile::OPTION_DBF_RETURN_DATES_AS_OBJECTS`
+    - `Shapefile::OPTION_DELETE_EMPTY_FILES`
+    - `Shapefile::OPTION_ENFORCE_GEOMETRY_DATA_STRUCTURE`
+    - `Shapefile::OPTION_ENFORCE_POLYGON_CLOSED_RINGS`
+    - `Shapefile::OPTION_FORCE_MULTIPART_GEOMETRIES`
+    - `Shapefile::OPTION_IGNORE_GEOMETRIES_BBOXES`
+    - `Shapefile::OPTION_IGNORE_SHAPEFILE_BBOX`
+    - `Shapefile::OPTION_INVERT_POLYGONS_ORIENTATION`
+    - `Shapefile::OPTION_OVERWRITE_EXISTING_FILES`
+    - `Shapefile::OPTION_SUPPRESS_M`
+    - `Shapefile::OPTION_SUPPRESS_Z`
 - File types constants:
     - `Shapefile::FILE_SHP`
     - `Shapefile::FILE_SHX`
@@ -37,7 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     - `Shapefile::FILE_DBT`
     - `Shapefile::FILE_PRJ`
     - `Shapefile::FILE_CPG`
-    - `Shapefile::FILE_CST`
 - Shape types constants:
     - `Shapefile::SHAPE_TYPE_NULL`
     - `Shapefile::SHAPE_TYPE_POINT`
@@ -63,7 +68,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     - `Shapefile::ERR_UNDEFINED`
     - `Shapefile::ERR_FILE_MISSING`
     - `Shapefile::ERR_FILE_EXISTS`
+    - `Shapefile::ERR_FILE_INVALID_RESOURCE`
     - `Shapefile::ERR_FILE_OPEN`
+    - `Shapefile::ERR_FILE_READING`
+    - `Shapefile::ERR_FILE_WRITING`
     - `Shapefile::ERR_SHP_TYPE_NOT_SUPPORTED`
     - `Shapefile::ERR_SHP_TYPE_NOT_SET`
     - `Shapefile::ERR_SHP_TYPE_ALREADY_SET`
@@ -81,12 +89,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     - `Shapefile::ERR_DBF_FIELD_SIZE_NOT_VALID`
     - `Shapefile::ERR_DBF_FIELD_DECIMALS_NOT_VALID`
     - `Shapefile::ERR_DBF_CHARSET_CONVERSION`
+    - `Shapefile::ERR_DBT_EOF_REACHED`
     - `Shapefile::ERR_GEOM_NOT_EMPTY`
     - `Shapefile::ERR_GEOM_COORD_VALUE_NOT_VALID`
     - `Shapefile::ERR_GEOM_MISMATCHED_DIMENSIONS`
     - `Shapefile::ERR_GEOM_MISMATCHED_BBOX`
-    - `Shapefile::ERR_GEOM_SHAPEFILE_NOT_SET`
-    - `Shapefile::ERR_GEOM_SHAPEFILE_ALREADY_SET`
+    - `Shapefile::ERR_GEOM_MISSING_FIELD`
     - `Shapefile::ERR_GEOM_POINT_NOT_VALID`
     - `Shapefile::ERR_GEOM_POLYGON_OPEN_RING`
     - `Shapefile::ERR_GEOM_POLYGON_AREA_TOO_SMALL`
@@ -98,6 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     - `Shapefile::ERR_INPUT_ARRAY_NOT_VALID`
     - `Shapefile::ERR_INPUT_WKT_NOT_VALID`
     - `Shapefile::ERR_INPUT_GEOJSON_NOT_VALID`
+    - `Shapefile::ERR_INPUT_NUMERIC_VALUE_OVERFLOW`
 
 ### Changed
 - Folder structure under `src/` reflects namespaces hierarchy
@@ -111,7 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Stricter invalid date format detection
-- Logical (`bool`) not initialized values (`null`) detection
+- Logical (`bool`) not initialized values (`null`) detection in *DBF* files
 
 ### Removed
 - `ShapefileReader` public methods:

@@ -21,6 +21,11 @@ class ShapefileException extends \Exception
      */
     private $error_type;
     
+    /**
+     * @var string      Additional information about the error.
+     */
+    private $details;
+    
     
     /**
      * Constructor
@@ -30,13 +35,10 @@ class ShapefileException extends \Exception
      */
     public function __construct($error_type, $details = '')
     {
-        $this->error_type = $error_type;
+        $this->error_type   = $error_type;
+        $this->details      = $details;
         
         $message = constant('Shapefile\Shapefile::' . $error_type . '_MESSAGE');
-        if ($details !== '') {
-            $message .= ': "' . $details . '"';
-        }
-        
         parent::__construct($message, 0, null);
     }
     
@@ -49,4 +51,15 @@ class ShapefileException extends \Exception
     {
         return $this->error_type;
     }
+    
+    /**
+     * Gets error details.
+     *
+     * @return  string
+     */
+    public function getDetails()
+    {
+        return $this->details;
+    }
+    
 }

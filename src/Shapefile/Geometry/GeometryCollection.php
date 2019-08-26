@@ -46,14 +46,9 @@ abstract class GeometryCollection extends Geometry
      */
     public function __construct(array $geometries = null)
     {
-        $classname = $this->getCollectionClass();
         if ($geometries !== null) {
             foreach ($geometries as $Geometry) {
-                if (is_a($Geometry, $classname)) {
-                    $this->addGeometry($Geometry);
-                } else {
-                    throw new ShapefileException(Shapefile::ERR_INPUT_GEOMETRY_TYPE_NOT_VALID, $classname);
-                }
+               $this->addGeometry($Geometry);
             }
         }
     }

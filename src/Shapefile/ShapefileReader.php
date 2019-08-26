@@ -21,19 +21,14 @@ use Shapefile\Geometry\MultiPolygon;
 class ShapefileReader extends Shapefile implements \Iterator
 {
     /**
-     * @var array   Array of files. Every files is represented as an associative array:
-     *                  "xxx" => [
-     *                      "handle" => resource
-     *                      "size"   => integer
-     *                  ]
-     */
-    private $files = [];
-    
-    
-    /**
      * @var array   DBF field names map: fields are numerically indexed into DBF files.
      */
     private $dbf_fields = [];
+    
+    /**
+     * @var integer DBF file size in bytes.
+     */
+    private $dbf_file_size;
     
     /**
      * @var integer DBF file header size in bytes.
@@ -45,12 +40,10 @@ class ShapefileReader extends Shapefile implements \Iterator
      */
     private $dbf_record_size;
     
-    
     /**
-     * @var bool    Flag used by readDoubleL() method.
+     * @var integer DBT file size in bytes.
      */
-    private $big_endian_machine;
-    
+    private $dbt_file_size;
     
     /**
      * @var integer Pointer to current SHP and DBF files record.
@@ -68,85 +61,47 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Constructor.
      * 
-     * @param   string|array    $files      Path to SHP file or array of paths or handles of individual files.
+     * @param   string|array    $files      Path to SHP file / Array of paths / Array of handles of individual files.
      * @param   array           $options    Optional associative array of options.
      */
     public function __construct($files, $options = [])
     {
-        // Files
-        if (is_string($files)) {
-            $basename = (substr($files, -4) == '.' . Shapefile::FILE_SHP) ? substr($files, 0, -4) : $files;
-            $files = [
-                Shapefile::FILE_SHP => $basename . '.' . Shapefile::FILE_SHP,
-                Shapefile::FILE_SHX => $basename . '.' . Shapefile::FILE_SHX,
-                Shapefile::FILE_DBF => $basename . '.' . Shapefile::FILE_DBF,
-                Shapefile::FILE_DBT => $basename . '.' . Shapefile::FILE_DBT,
-                Shapefile::FILE_PRJ => $basename . '.' . Shapefile::FILE_PRJ,
-                Shapefile::FILE_CPG => $basename . '.' . Shapefile::FILE_CPG,
-                Shapefile::FILE_CST => $basename . '.' . Shapefile::FILE_CST,
-            ];
-        } else {
-            if (!isset($files[Shapefile::FILE_SHP], $files[Shapefile::FILE_SHX], $files[Shapefile::FILE_DBF])) {
-                throw new ShapefileException(Shapefile::ERR_FILE_MISSING, strtoupper(implode(', ', [Shapefile::FILE_SHP, Shapefile::FILE_SHX, Shapefile::FILE_DBF])));
-            }
-        }
-        if (array_filter($files, 'is_resource') === $files) {
-            foreach ($files as $type => $file) {
-                $this->files[$type] = [
-                    'handle'    => $file,
-                    'size'      => fstat($file)['size'],
-                ];
-            }
-        } else {
-            foreach ([
-                ['type' => Shapefile::FILE_SHP, 'required' => true],
-                ['type' => Shapefile::FILE_SHX, 'required' => true],
-                ['type' => Shapefile::FILE_DBF, 'required' => true],
-                ['type' => Shapefile::FILE_DBT, 'required' => false],
-                ['type' => Shapefile::FILE_PRJ, 'required' => false],
-                ['type' => Shapefile::FILE_CPG, 'required' => false],
-                ['type' => Shapefile::FILE_CST, 'required' => false],
-            ] as $f) { 
-                if (isset($files[$f['type']])) {
-                    if (is_string($files[$f['type']]) && is_readable($files[$f['type']]) && is_file($files[$f['type']])) {
-                        $this->files[$f['type']] = $this->openFile($files[$f['type']]);
-                    } elseif ($f['required']) {
-                        throw new ShapefileException(Shapefile::ERR_FILE_EXISTS, $files[$f['type']]);
-                    }
-                }
-            }
-        }
-        
         // Options
         $this->initOptions([
-            Shapefile::OPTION_INVERT_POLYGONS_ORIENTATION,
-            Shapefile::OPTION_SUPPRESS_Z,
-            Shapefile::OPTION_SUPPRESS_M,
+            Shapefile::OPTION_DBF_CONVERT_TO_UTF8,
             Shapefile::OPTION_DBF_FORCE_ALL_CAPS,
+            Shapefile::OPTION_DBF_IGNORED_FIELDS,
             Shapefile::OPTION_DBF_NULL_PADDING_CHAR,
+            Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES,
+            Shapefile::OPTION_DBF_RETURN_DATES_AS_OBJECTS,
             Shapefile::OPTION_ENFORCE_POLYGON_CLOSED_RINGS,
             Shapefile::OPTION_FORCE_MULTIPART_GEOMETRIES,
-            Shapefile::OPTION_IGNORE_SHAPEFILE_BBOX,
             Shapefile::OPTION_IGNORE_GEOMETRIES_BBOXES,
-            Shapefile::OPTION_DBF_IGNORED_FIELDS,
-            Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES,
-            Shapefile::OPTION_DBF_CONVERT_TO_UTF8,
+            Shapefile::OPTION_IGNORE_SHAPEFILE_BBOX,
+            Shapefile::OPTION_INVERT_POLYGONS_ORIENTATION,
+            Shapefile::OPTION_SUPPRESS_M,
+            Shapefile::OPTION_SUPPRESS_Z,
         ], $options);
         
-        // Misc
-        $this->big_endian_machine = current(unpack('v', pack('S', 0xff))) !== 0xff;
-        $this->tot_records = ($this->files[Shapefile::FILE_SHX]['size'] - 100) / 8;
+        // Open files
+        $this->openFiles($files, false);
+        
+        // Gets number of records from SHX file size.
+        $this->tot_records = ($this->getFileSize(Shapefile::FILE_SHX) - Shapefile::SHX_HEADER_SIZE) / Shapefile::SHX_RECORD_SIZE;
+        
+        // DBF file size
+        $this->dbf_file_size = $this->getFileSize(Shapefile::FILE_DBF);
+        // DBT file size
+        $this->dbt_file_size = $this->isFileOpen(Shapefile::FILE_DBT) ? $this->getFileSize(Shapefile::FILE_DBT) : null;
         
         // PRJ
-        if (isset($this->files[Shapefile::FILE_PRJ])) {
-            $this->setPRJ($this->readString(Shapefile::FILE_PRJ, $this->files[Shapefile::FILE_PRJ]['size']));
+        if ($this->isFileOpen(Shapefile::FILE_PRJ)) {
+            $this->setPRJ($this->readString(Shapefile::FILE_PRJ, $this->getFileSize(Shapefile::FILE_PRJ)));
         }
         
-        // CPG and CST (DBF charset): CPG file takes precedence over CST one
-        if (isset($this->files[Shapefile::FILE_CPG])) {
-            $this->setCharset($this->readString(Shapefile::FILE_CPG, $this->files[Shapefile::FILE_CPG]['size']));
-        } elseif (isset($this->files[Shapefile::FILE_CST])) {
-            $this->setCharset($this->readString(Shapefile::FILE_CST, $this->files[Shapefile::FILE_CST]['size']));
+        // CPG
+        if ($this->isFileOpen(Shapefile::FILE_CPG)) {
+            $this->setCharset($this->readString(Shapefile::FILE_CPG, $this->getFileSize(Shapefile::FILE_CPG)));
         }
         
         // Read headers
@@ -160,13 +115,11 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Destructor.
      * 
-     * Closes all file pointer resource handles.
+     * Closes all files.
      */
     public function __destruct()
     {
-        foreach ($this->files as $file) {
-            $this->closeFile($file['handle']);
-        }
+        $this->closeFiles();
     }
     
     
@@ -200,6 +153,78 @@ class ShapefileReader extends Shapefile implements \Iterator
     }
     
     
+    public function getShapeType($format = Shapefile::FORMAT_INT)
+    {
+        return parent::getShapeType($format);
+    }
+    
+    public function getBoundingBox()
+    {
+        return parent::getBoundingBox();
+    }
+    
+    public function getPRJ()
+    {
+        return parent::getPRJ();
+    }
+    
+    public function getCharset()
+    {
+        return parent::getCharset();
+    }
+    
+    public function setCharset($charset)
+    {
+        parent::setCharset($charset);
+    }
+    
+    public function getField($name)
+    {
+        return parent::getField($name);
+    }
+    
+    public function getFields()
+    {
+        return parent::getFields();
+    }
+    
+   /**
+     * Gets a field type.
+     *
+     * @param   string  $name   Name of the field.
+     *
+     * @return  string
+     */
+    public function getFieldType($name)
+    {
+        return $this->getField($name)['type'];
+    }
+    
+    /**
+     * Gets a field size.
+     *
+     * @param   string  $name   Name of the field.
+     *
+     * @return  integer
+     */
+    public function getFieldSize($name)
+    {
+        return $this->getField($name)['size'];
+    }
+    
+    /**
+     * Gets a field decimals.
+     *
+     * @param   string  $name   Name of the field.
+     *
+     * @return  integer
+     */
+    public function getFieldDecimals($name)
+    {
+        return $this->getField($name)['decimals'];
+    }
+    
+    
     /**
      * Gets total number of records in SHP and DBF files.
      *
@@ -214,7 +239,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      * Gets current record index.
      *
      * Note that records count starts from 1 in Shapefiles.
-     * When the last record is reached, the special value ShapeFile::EOF will be returned.
+     * When the last record is reached, the special value Shapefile::EOF will be returned.
      *
      * @return  integer
      */
@@ -236,7 +261,6 @@ class ShapefileReader extends Shapefile implements \Iterator
         $this->current_record = $index;
     }
     
-    
     /**
      * Gets current record and moves the cursor to the next one.
      *
@@ -255,74 +279,20 @@ class ShapefileReader extends Shapefile implements \Iterator
     
     /////////////////////////////// PRIVATE ///////////////////////////////
     /**
-     * Opens a file in binary read mode returning a resource handle and its size.
+     * Reads data from a file and unpacks it according to the given format.
      *
-     * @param   string  $file       Path to the file to open.
-     *
-     * @return  array       Associative array with "handle" (file pointer resource) and "size" (file size in bytes)
-     */
-    private function openFile($file)
-    {
-        $handle = fopen($file, 'rb');
-        if (!$handle) {
-            throw new ShapefileException(Shapefile::ERR_FILE_OPEN, $file);
-        }
-        return [
-            'handle'    => $handle,
-            'size'      => fstat($handle)['size'],
-        ];
-    }
-    
-    /**
-     * Closes a previously opened resource handle.
-     *
-     * @param   resource    $handle     The resource handle of the file.
-     */
-    private function closeFile($handle)
-    {
-        if ($handle) {
-            fclose($handle);
-        }
-    }
-    
-    /**
-     * Sets the pointer position of a resource handle to specified value.
-     *
-     * @param   string  $file_type  File type (member of $this->files array).
-     * @param   integer $position   The position to set the pointer to.
-     */
-    private function setFilePointer($file_type, $position)
-    {
-        fseek($this->files[$file_type]['handle'], $position, SEEK_SET);
-    }
-    
-    /**
-     * Increase the pointer position of a resource handle of specified value.
-     *
-     * @param   string  $file_type  File type (member of $this->files array).
-     * @param   integer $offset     The offset to move the pointer for.
-     */
-    private function setFileOffset($file_type, $offset)
-    {
-        fseek($this->files[$file_type]['handle'], $offset, SEEK_CUR);
-    }
-    
-    
-    /**
-     * Reads data from a resource handle and unpacks it according to the given format.
-     *
-     * @param   string  $file_type          File type (member of $this->files array).
+     * @param   string  $file_type          File type.
      * @param   string  $format             Format code. See php pack() documentation.
      * @param   integer $length             Number of bytes to read.
      * @param   bool    $invert_endianness  Set this optional flag to true when reading floating point numbers on a big endian machine.
      *
-     * @return  mixed
+     * @return  string
      */
     private function readData($file_type, $format, $length, $invert_endianness = false)
     {
-        $data = fread($this->files[$file_type]['handle'], $length);
+        $data = $this->fileRead($file_type, $length);
         if ($data === false) {
-            return null;
+            throw new ShapefileException(Shapefile::ERR_FILE_READING);
         }
         if ($invert_endianness) {
             $data = strrev($data);
@@ -331,9 +301,21 @@ class ShapefileReader extends Shapefile implements \Iterator
     }
     
     /**
+     * Reads an unsigned char from a resource handle.
+     *
+     * @param   string  $file_type      File type.
+     *
+     * @return  integer
+     */
+    private function readChar($file_type)
+    {
+        return $this->readData($file_type, 'C', 1);
+    }
+    
+    /**
      * Reads an unsigned short, 16 bit, little endian byte order, from a resource handle.
      *
-     * @param   string  $file_type      File type (member of $this->files array).
+     * @param   string  $file_type      File type.
      *
      * @return  integer
      */
@@ -345,7 +327,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads an unsigned long, 32 bit, big endian byte order, from a resource handle.
      *
-     * @param   string  $file_type      File type (member of $this->files array).
+     * @param   string  $file_type      File type.
      *
      * @return  integer
      */
@@ -357,7 +339,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads an unsigned long, 32 bit, little endian byte order, from a resource handle.
      *
-     * @param   string  $file_type      File type (member of $this->files array).
+     * @param   string  $file_type      File type.
      *
      * @return  integer
      */
@@ -369,19 +351,19 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads a double, 64 bit, little endian byte order, from a resource handle.
      *
-     * @param   string  $file_type      File type (member of $this->files array).
+     * @param   string  $file_type      File type.
      *
      * @return  double
      */
     private function readDoubleL($file_type)
     {
-        return $this->readData($file_type, 'd', 8, $this->big_endian_machine);
+        return $this->readData($file_type, 'd', 8, $this->isBigEndianMachine());
     }
     
     /**
-     * Reads a string of given length from a resource handle and converts it to UTF-8.
+     * Reads a string of given length from a resource handle and optionally converts it to UTF-8.
      *
-     * @param   string  $file_type          File type (member of $this->files array).
+     * @param   string  $file_type          File type.
      * @param   integer $length             Length of the string to read.
      * @param   bool    $flag_utf8_encode   Optional flag to convert output to UTF-8 if OPTION_DBF_CONVERT_TO_UTF8 is enabled.
      *
@@ -397,18 +379,6 @@ class ShapefileReader extends Shapefile implements \Iterator
             }
         }
         return trim($ret);
-    }
-    
-    /**
-     * Reads an unsigned char from a resource handle.
-     *
-     * @param   string  $file_type      File type (member of $this->files array).
-     *
-     * @return  string
-     */
-    private function readChar($file_type)
-    {
-        return $this->readData($file_type, 'C', 1);
     }
     
     
@@ -467,14 +437,14 @@ class ShapefileReader extends Shapefile implements \Iterator
         // Fields
         $this->dbf_fields = [];
         $this->setFilePointer(Shapefile::FILE_DBF, 32);
-        while (ftell($this->files['dbf']['handle']) < $this->dbf_header_size - 1) {
+        while ($this->getFilePointer(Shapefile::FILE_DBF) < $this->dbf_header_size - 1) {
             $name       = $this->sanitizeDBFFieldName($this->readString(Shapefile::FILE_DBF, 11));
             $type       = $this->readString(Shapefile::FILE_DBF, 1);
             $this->setFileOffset(Shapefile::FILE_DBF, 4);
             $size       = $this->readChar(Shapefile::FILE_DBF);
             $decimals   = $this->readChar(Shapefile::FILE_DBF);
             $ignored    = in_array($name, $this->getOption(Shapefile::OPTION_DBF_IGNORED_FIELDS));
-            if ($type === Shapefile::DBF_TYPE_MEMO && !$flag_ignore && !isset($files[Shapefile::FILE_DBT])) {
+            if ($type === Shapefile::DBF_TYPE_MEMO && !$flag_ignore && !$this->isFileOpen(Shapefile::FILE_DBT)) {
                 throw new ShapefileException(Shapefile::ERR_FILE_MISSING, strtoupper(Shapefile::FILE_DBT));
             }
             $this->dbf_fields[] = [
@@ -503,18 +473,21 @@ class ShapefileReader extends Shapefile implements \Iterator
             return false;
         }
         
-        // Read SHP offset from SHX
-        $this->setFilePointer(Shapefile::FILE_SHX, 100 + (($this->current_record - 1) * 8));
+        // === SHX ===
+        $this->setFilePointer(Shapefile::FILE_SHX, Shapefile::SHX_HEADER_SIZE + (($this->current_record - 1) * Shapefile::SHX_RECORD_SIZE));
+        // Offset (in 16bit words)
         $shp_offset = $this->readInt32B(Shapefile::FILE_SHX) * 2;
-        $this->setFilePointer(Shapefile::FILE_SHP, $shp_offset);
         
-        // Read SHP record header
+        
+        // === SHP ===
+        $this->setFilePointer(Shapefile::FILE_SHP, $shp_offset);
+        // Skip record header
         $this->setFileOffset(Shapefile::FILE_SHP, 8);
+        // Shape type
         $shape_type = $this->readInt32L(Shapefile::FILE_SHP);
         if ($shape_type != Shapefile::SHAPE_TYPE_NULL && $shape_type != $this->getShapeType()) {
             throw new ShapefileException(Shapefile::ERR_SHP_WRONG_RECORD_TYPE, $shape_type);
         }
-        
         // Read Geometry
         $methods = [
             Shapefile::SHAPE_TYPE_NULL          => 'readNull',
@@ -532,25 +505,40 @@ class ShapefileReader extends Shapefile implements \Iterator
             Shapefile::SHAPE_TYPE_MULTIPOINTM   => 'readMultiPointM',
         ];
         $Geometry = $this->{$methods[$shape_type]}();
-        $this->addGeometry($Geometry);
         
-        // Read DBF data
+        
+        // === DBF ===
         $this->setFilePointer(Shapefile::FILE_DBF, $this->dbf_header_size + (($this->current_record - 1) * $this->dbf_record_size));
         // Check if DBF is not corrupted (some "naive" users try to edit the DBF separately...)
         // Some GIS do not include the last Shapefile::DBF_EOF_MARKER (0x1a) byte in the DBF file, hence the "+ 1" in the following line
-        if (ftell($this->files['dbf']['handle']) >= ($this->files['dbf']['size'] - $this->dbf_record_size + 1)) {
+        if ($this->getFilePointer(Shapefile::FILE_DBF) >= ($this->dbf_file_size - $this->dbf_record_size + 1)) {
             throw new ShapefileException(Shapefile::ERR_DBF_EOF_REACHED);
         }
-        $Geometry->setFlagDeleted($this->readChar(Shapefile::FILE_DBF) !== Shapefile::DBF_BLANK);
+        $Geometry->setFlagDeleted($this->readChar(Shapefile::FILE_DBF) === Shapefile::DBF_DELETED_MARKER);
         foreach ($this->dbf_fields as $i => $f) {
             if ($f['ignored']) {
                 $this->setFileOffset(Shapefile::FILE_DBF, $f['size']);
             } else {
-                $value = $this->decodeFieldValue($f['name'], $this->readString(Shapefile::FILE_DBF, $f['size'], true));
+                $type   = $this->getField($f['name'])['type'];
+                $value  = $this->decodeFieldValue($f['name'], $type, $this->readString(Shapefile::FILE_DBF, $f['size'], true));
+                // Memo (DBT)
+                if ($type === Shapefile::DBF_TYPE_MEMO && $value) {
+                    $this->setFilePointer(Shapefile::FILE_DBT, intval($value) * Shapefile::DBT_BLOCK_SIZE);
+                    $value = '';
+                    do {
+                        if ($this->getFilePointer(Shapefile::FILE_DBT) >= $this->dbt_file_size) {
+                            throw new ShapefileException(Shapefile::ERR_DBT_EOF_REACHED);
+                        }
+                        $value .= $this->readString(Shapefile::FILE_DBT, Shapefile::DBT_BLOCK_SIZE, true);
+                    // Some software only sets ONE field terminator instead of TWO, hence the weird loop condition check:
+                    } while (ord(substr($value, -1)) != Shapefile::DBT_FIELD_TERMINATOR && ord(substr($value, -2, 1)) != Shapefile::DBT_FIELD_TERMINATOR);
+                    $value = substr($value, 0, -2); 
+                }
                 $Geometry->setData($f['name'], $value);
             }
         }
         
+        $this->pairGeometry($Geometry);
         return $Geometry;
     }
     
@@ -559,21 +547,25 @@ class ShapefileReader extends Shapefile implements \Iterator
      * Decodes a raw value read from a DBF field.
      *
      * @param   string  $field      Name of the field.
+     * @param   string  $type       Type of the field.
      * @param   string  $value      Raw value to decode.
      *
      * @return  mixed
      */
-    private function decodeFieldValue($field, $value)
+    private function decodeFieldValue($field, $type, $value)
     {
-        if ($this->getOption(Shapefile::OPTION_DBF_NULL_PADDING_CHAR) !== null && $value == str_repeat($this->getOption(Shapefile::OPTION_DBF_NULL_PADDING_CHAR), $this->getFieldSize($field))) {
+        if ($this->getOption(Shapefile::OPTION_DBF_NULL_PADDING_CHAR) !== null && $value == str_repeat($this->getOption(Shapefile::OPTION_DBF_NULL_PADDING_CHAR), $this->getField($field)['size'])) {
             $value = null;
         } else {
-            switch ($this->getFieldType($field)) {
+            switch ($type) {
                 case Shapefile::DBF_TYPE_DATE:
                     $DateTime   = \DateTime::createFromFormat('Ymd', $value);
                     $errors     = \DateTime::getLastErrors();
                     if ($errors['warning_count'] || $errors['error_count']) {
                         $value = $this->getOption(Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES) ? null : $value;
+                    } elseif ($this->getOption(Shapefile::OPTION_DBF_RETURN_DATES_AS_OBJECTS)) {
+                        $DateTime->setTime(0, 0, 0);
+                        $value = $DateTime;
                     } else {
                         $value = $DateTime->format('Y-m-d');
                     }  
@@ -581,18 +573,6 @@ class ShapefileReader extends Shapefile implements \Iterator
                     
                 case Shapefile::DBF_TYPE_LOGICAL:
                     $value = ($value === '?') ? null : in_array($value, ['Y', 'y', 'T', 't']);
-                break;
-                
-                case Shapefile::DBF_TYPE_MEMO:
-                    $this->setFilePointer(Shapefile::FILE_DBT, intval($value) * Shapefile::DBT_BLOCK_SIZE);
-                    $value = '';
-                    do {
-                        if (ftell($this->files['dbt']['handle']) >= $this->files['dbt']['size']) {
-                            throw new ShapefileException(Shapefile::ERR_DBT_EOF_REACHED);
-                        }
-                        $value .= $this->readString(Shapefile::FILE_DBT, Shapefile::DBT_BLOCK_SIZE, true);
-                    } while (ord(substr($value, -1)) != Shapefile::DBT_FIELD_TERMINATOR && ord(substr($value, -2, 1)) != Shapefile::DBT_FIELD_TERMINATOR);
-                    $value = substr($value, 0, -2); 
                     break;
             }
         }
@@ -644,7 +624,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      */
     private function parseM($value)
     {
-        return ($value < -pow(10, 38)) ? false : $value;
+        return ($value <= Shapefile::SHP_NO_DATA_THRESHOLD) ? false : $value;
     }
     
     
@@ -1070,41 +1050,6 @@ class ShapefileReader extends Shapefile implements \Iterator
             $Geometry->setCustomBoundingBox($data['bbox']);
         }
         return $Geometry;  
-    }
-    
-    /**
-     * Checks whether a ring is clockwise or not.
-     * It uses Gauss's area formula to check for positive or negative orientation.
-     *
-     * An optional $exp parameter is used in order to deal with small polygons.
-     *
-     * @param   array   $points     Array of points. Each element must have a "x" and "y" member.
-     * @param   integer $exp        Optional exponent to deal with small areas.
-     *
-     * @return  bool
-     */
-    private function isClockwise($points, $exp = 1)
-    {
-        $num_points = count($points);
-        if ($num_points < 2) {
-            return true;
-        }
-        
-        $num_points--;
-        $tot = 0;
-        for ($i = 0; $i < $num_points; ++$i) {
-            $tot += ($exp * $points[$i]['x'] * $points[$i+1]['y']) - ($exp * $points[$i]['y'] * $points[$i+1]['x']);
-        }
-        $tot += ($exp * $points[$num_points]['x'] * $points[0]['y']) - ($exp * $points[$num_points]['y'] * $points[0]['x']);
-        
-        if ($tot == 0) {
-            if ($exp >= pow(10, 9)) {
-                throw new ShapefileException(Shapefile::ERR_GEOM_POLYGON_AREA_TOO_SMALL);
-            }
-            return $this->isClockwise($points, $exp * pow(10, 3));
-        }
-        
-        return $tot < 0;
     }
     
 }

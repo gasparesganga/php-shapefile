@@ -25,20 +25,10 @@ abstract class Geometry
      */
     private $custom_bounding_box = null;
     
-    
     /**
-     * @var array   DBF data of the Geometry.
+     * @var array   Data of the Geometry.
      */
     private $data = [];
-    
-    /**
-     * @var Shapefile|null      Shapefile the Geometry belongs to.
-     *                          It is used only for geometries that belong to a Shapefile and
-     *                          NOT for the ones contained in a collection.
-     *                          The structure of the Shapefile will dictate the structure of Geometry data.
-     */
-    private $Shapefile = null;
-    
     
     /**
      * @var bool    Flag representing whether the Geometry is empty.
@@ -198,17 +188,18 @@ abstract class Geometry
     
     /**
      * Sets a custom bounding box for the Geometry.
-     * No formal check is carried out except the compliance of dimensions.
+     * No check is carried out except a formal compliance of dimensions.
      *
      * @param   array   $bounding_box    Associative array with the xmin, xmax, ymin, ymax and optional zmin, zmax, mmin, mmax values.
      */
     public function setCustomBoundingBox($bounding_box)
     {
+        $bounding_box = array_intersect_key($bounding_box, array_flip(['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax', 'mmin', 'mmax']));
         if (
-            $this->isEmpty()                                                                                    ||
-            !isset($bounding_box['xmin'], $bounding_box['xmax'], $bounding_box['ymin'], $bounding_box['ymax'])  ||
-            ($this->isZ() && !isset($bounding_box['zmin'], $bounding_box['zmax']))                              ||
-            ($this->isM() && !isset($bounding_box['mmin'], $bounding_box['mmax']))
+                $this->isEmpty()
+            ||  !isset($bounding_box['xmin'], $bounding_box['xmax'], $bounding_box['ymin'], $bounding_box['ymax'])
+            ||  (($this->isZ() && !isset($bounding_box['zmin'], $bounding_box['zmax'])) || (!$this->isZ() && (isset($bounding_box['zmin']) || isset($bounding_box['zmax']))))
+            ||  (($this->isM() && !isset($bounding_box['mmin'], $bounding_box['mmax'])) || (!$this->isM() && (isset($bounding_box['mmin']) || isset($bounding_box['mmax']))))
         ) {
             throw new ShapefileException(Shapefile::ERR_GEOM_MISMATCHED_BBOX);
         }
@@ -227,77 +218,50 @@ abstract class Geometry
     
     /**
      * Gets data value for speficied field name.
-     * It requires the Geometry to belong to a Shapefile.
      *
-     * @param   string  $field      Name of the field.
+     * @param   string  $fieldname  Name of the field.
      *
      * @return  mixed
      */
-    public function getData($field)
+    public function getData($fieldname)
     {
-        $this->checkShapefile();
-        $this->Shapefile->checkField($field);
-        return $this->data[$field];
+        if (!isset($this->data[$fieldname])) {
+            throw new ShapefileException(Shapefile::ERR_INPUT_FIELD_NOT_FOUND, $fieldname);
+        }
+        return $this->data[$fieldname];
     }
     
     /**
      * Sets data value for speficied field name.
-     * It requires the Geometry to belong to a Shapefile.
      *
-     * @param   string  $field      Name of the field.
+     * @param   string  $fieldname  Name of the field.
      * @param   mixed   $value      Value to assign to the field.
      */
-    public function setData($field, $value)
+    public function setData($fieldname, $value)
     {
-        $this->checkShapefile();
-        $this->Shapefile->checkField($field);
-        $this->data[$field] = $value;
+        $this->data[$fieldname] = $value;
     }
     
     /**
-     * Gets an array of data of all the defined fields.
-     * It requires the Geometry to belong to a Shapefile.
+     * Gets an array of defined data.
      *
      * @return  array
      */
     public function getDataArray()
     {
-        $this->checkShapefile();
         return $this->data;
     }
     
     /**
      * Sets an array of data.
-     * It requires the Geometry to belong to a Shapefile.
      *
-     * @param   array   $data   Associative array of values.
+     * @param   array   $data       Associative array of values.
      */
     public function setDataArray($data)
     {
-        $this->checkShapefile();
-        foreach ($data as $field => $value) {
-            $this->Shapefile->checkField($field);
-            $this->data[$field] = $value;
+        foreach ($data as $fieldname => $value) {
+            $this->data[$fieldname] = $value;
         }
-    }
-        
-    
-    /**
-     * Sets the Shapefile the Geometry belongs to.
-     * It can be called just once for an instance of the class.
-     * This is not intended for users, but Shapefile requires it for internal mechanisms.
-     *
-     * @internal
-     *
-     * @param   Shapefile   $Shapefile
-     */
-    public function setShapefile(\Shapefile\Shapefile $Shapefile)
-    {
-        if ($this->Shapefile !== null) {
-            throw new ShapefileException(Shapefile::ERR_GEOM_SHAPEFILE_ALREADY_SET);
-        }
-        $this->Shapefile    = $Shapefile;
-        $this->data         = array_fill_keys(array_keys($Shapefile->getFields()), null);
     }
     
     
@@ -335,16 +299,12 @@ abstract class Geometry
     
     
     /**
-     * Checks if the Geometry has been initialized (it is not empty or has been added to a Shapefile)
-     * and if YES throws and exception.
+     * Checks if the Geometry has been initialized (it is not empty) and if YES throws and exception.
      */
     protected function checkInit()
     {
         if (!$this->isEmpty()) {
             throw new ShapefileException(Shapefile::ERR_GEOM_NOT_EMPTY);
-        }
-        if ($this->Shapefile !== null) {
-            throw new ShapefileException(Shapefile::ERR_GEOM_SHAPEFILE_ALREADY_SET);
         }
     }
     
@@ -627,17 +587,6 @@ abstract class Geometry
             $ret['m'] = $coordinates[3];
         }
         return $ret;
-    }
-    
-    
-    /**
-     * Checks if the Geometry belongs to a Shapefile and if NOT throws and exception.
-     */
-    private function checkShapefile()
-    {
-        if ($this->Shapefile === null) {
-            throw new ShapefileException(Shapefile::ERR_GEOM_SHAPEFILE_NOT_SET);
-        }
     }
     
 }

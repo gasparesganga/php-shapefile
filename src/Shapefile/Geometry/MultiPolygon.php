@@ -165,7 +165,7 @@ class MultiPolygon extends GeometryCollection
         }
         return [
             'numparts'  => $this->getNumGeometries(),
-            'rings'     => $parts,
+            'parts'     => $parts,
         ];
     }
     
