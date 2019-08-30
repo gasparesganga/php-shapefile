@@ -851,7 +851,7 @@ abstract class Shapefile
      * Sets PRJ well-known-text.
      *
      * @param   string  $prj    PRJ well-known-text.
-     *                          Pass a falsy value (ie. false or "") to delete it.
+     *                          Pass a falsy value (eg. false or "") to delete it.
      */
     protected function setPRJ($prj)
     {
@@ -873,7 +873,7 @@ abstract class Shapefile
      * Sets or resets DBF charset.
      *
      * @param   mixed   $charset    Name of the charset.
-     *                              Pass a falsy value (ie. false or "") to reset it to default.
+     *                              Pass a falsy value (eg. false or "") to reset it to default.
      */
     protected function setCharset($charset)
     {

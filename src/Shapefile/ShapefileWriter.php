@@ -129,6 +129,7 @@ class ShapefileWriter extends Shapefile
     
     /**
      * Adds a char field to the Shapefile definition.
+     * Returns the effective field name after eventual sanitization.
      * 
      * @param   string  $name               Name of the field. Maximum 10 characters.
      *                                      Only letters, numbers and underscores are allowed.
@@ -145,6 +146,7 @@ class ShapefileWriter extends Shapefile
     
     /**
      * Adds a date field to the Shapefile definition.
+     * Returns the effective field name after eventual sanitization.
      * 
      * @param   string  $name               Name of the field. Maximum 10 characters.
      *                                      Only letters, numbers and underscores are allowed.
@@ -160,6 +162,7 @@ class ShapefileWriter extends Shapefile
     
     /**
      * Adds a logical/boolean field to the Shapefile definition.
+     * Returns the effective field name after eventual sanitization.
      * 
      * @param   string  $name               Name of the field. Maximum 10 characters.
      *                                      Only letters, numbers and underscores are allowed.
@@ -175,6 +178,7 @@ class ShapefileWriter extends Shapefile
     
     /**
      * Adds a memo field to the Shapefile definition.
+     * Returns the effective field name after eventual sanitization.
      * 
      * @param   string  $name               Name of the field. Maximum 10 characters.
      *                                      Only letters, numbers and underscores are allowed.
@@ -190,6 +194,7 @@ class ShapefileWriter extends Shapefile
     
     /**
      * Adds numeric to the Shapefile definition.
+     * Returns the effective field name after eventual sanitization.
      * 
      * @param   string  $name               Name of the field. Maximum 10 characters.
      *                                      Only letters, numbers and underscores are allowed.
@@ -207,6 +212,7 @@ class ShapefileWriter extends Shapefile
     
     /**
      * Adds floating point to the Shapefile definition.
+     * Returns the effective field name after eventual sanitization.
      * 
      * @param   string  $name               Name of the field. Maximum 10 characters.
      *                                      Only letters, numbers and underscores are allowed.
@@ -976,7 +982,7 @@ class ShapefileWriter extends Shapefile
                         $errors     = \DateTime::getLastErrors();
                     }
                     if ($errors['warning_count'] || $errors['error_count']) {
-                        $value = $this->getOption(Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES) ? null : $this->truncateOrPadString(preg_replace('/[^0-9]/', '', $value), $size);
+                        $value = $this->getOption(Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES) ? null : $this->truncateOrPadString($this->sanitizeNumber($value), $size);
                     } else {
                         $value = $DateTime->format('Ymd');
                     }
