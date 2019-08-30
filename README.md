@@ -1,6 +1,6 @@
 # PHP ShapeFile
 
-PHP library to read any *ESRI Shapefile* and its associated DBF into a PHP Array, WKT or GeoJSON
+PHP library to read and write ESRI Shapefiles, compatible with WKT and GeoJSON
 
 ---
 

@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
-## v3dev
+## v3.0.0 - 2018-08-30
 ### Added
 - Complete OOP style refactoring
 - Shapefile writing capabilities
