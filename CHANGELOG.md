@@ -5,7 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
-## v3.0.0 - 2018-08-30
+## v3.0.1 - 2019-08-31
+### Fixed
+- A typo in a variable name introduced with a late *code clean-up before final release* that was causing a PHP Notice when reading Shapefiles with *Memo* fields.
+- Year in the release date of v3 in CHANGELOG file.
+
+
+## v3.0.0 - 2019-08-30
 ### Added
 - Complete OOP style refactoring
 - Shapefile writing capabilities
