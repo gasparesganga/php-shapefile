@@ -444,7 +444,7 @@ class ShapefileReader extends Shapefile implements \Iterator
             $size       = $this->readChar(Shapefile::FILE_DBF);
             $decimals   = $this->readChar(Shapefile::FILE_DBF);
             $ignored    = in_array($name, $this->getOption(Shapefile::OPTION_DBF_IGNORED_FIELDS));
-            if ($type === Shapefile::DBF_TYPE_MEMO && !$flag_ignore && !$this->isFileOpen(Shapefile::FILE_DBT)) {
+            if ($type === Shapefile::DBF_TYPE_MEMO && !$ignored && !$this->isFileOpen(Shapefile::FILE_DBT)) {
                 throw new ShapefileException(Shapefile::ERR_FILE_MISSING, strtoupper(Shapefile::FILE_DBT));
             }
             $this->dbf_fields[] = [
