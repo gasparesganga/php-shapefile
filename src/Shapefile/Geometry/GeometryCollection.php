@@ -93,7 +93,7 @@ abstract class GeometryCollection extends Geometry
      *
      * @param   Geometry    $Geometry
      */
-    protected function addGeometry($Geometry)
+    protected function addGeometry(Geometry $Geometry)
     {
         if (!is_a($Geometry, $this->getCollectionClass())) {
             throw new ShapefileException(Shapefile::ERR_INPUT_GEOMETRY_TYPE_NOT_VALID, $this->getCollectionClass());

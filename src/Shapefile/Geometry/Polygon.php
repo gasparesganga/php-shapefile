@@ -184,9 +184,9 @@ class Polygon extends MultiLinestring
     /**
      * Enforces all linestrings in the collection to be closed rings.
      * 
-     * @param   Linestring  $Linestring
+     * @param   Geometry    $Linestring
      */
-    protected function addGeometry(Linestring $Linestring)
+    protected function addGeometry(Geometry $Linestring)
     {
         parent::addGeometry($Linestring);
         if ($this->flag_enforce_closed_rings && !$Linestring->isClosedRing()) {

@@ -265,9 +265,9 @@ class MultiPolygon extends GeometryCollection
     /**
      * Enforces all linestrings forming polygons in the collection to be closed rings.
      * 
-     * @param   Polygon     $Polygon
+     * @param   Geometry    $Polygon
      */
-    protected function addGeometry(Polygon $Polygon)
+    protected function addGeometry(Geometry $Polygon)
     {
         parent::addGeometry($Polygon);
         if ($this->flag_enforce_closed_rings) {
