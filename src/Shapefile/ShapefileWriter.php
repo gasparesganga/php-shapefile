@@ -896,6 +896,9 @@ class ShapefileWriter extends Shapefile
         $this->writeChar(Shapefile::FILE_DBF, $Geometry->isDeleted() ? Shapefile::DBF_DELETED_MARKER : Shapefile::DBF_BLANK);
         // Data
         $data = $Geometry->getDataArray();
+        if ($this->getOption(Shapefile::OPTION_DBF_FORCE_ALL_CAPS)) {
+            $data = array_change_key_case($data, CASE_UPPER);
+        }
         foreach ($this->getFields() as $name => $field) {
             if (!isset($data[$name])) {
                 if ($this->getOption(Shapefile::OPTION_ENFORCE_GEOMETRY_DATA_STRUCTURE)) {
