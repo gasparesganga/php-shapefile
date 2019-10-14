@@ -61,22 +61,40 @@ abstract class GeometryCollection extends Geometry
         }
         $ret = $this->getCustomBoundingBox();
         if (!$ret) {
+            $is_z = $this->isZ();
+            $is_m = $this->isM();
             foreach ($this->geometries as $Geometry) {
                 $bbox = $Geometry->getBoundingBox();
                 if (!$ret) {
                     $ret = $bbox;
                 } elseif ($bbox) {
-                    $ret['xmin'] = $bbox['xmin'] < $ret['xmin'] ? $bbox['xmin'] : $ret['xmin'];
-                    $ret['xmax'] = $bbox['xmax'] > $ret['xmax'] ? $bbox['xmax'] : $ret['xmax'];
-                    $ret['ymin'] = $bbox['ymin'] < $ret['ymin'] ? $bbox['ymin'] : $ret['ymin'];
-                    $ret['ymax'] = $bbox['ymax'] > $ret['ymax'] ? $bbox['ymax'] : $ret['ymax'];
-                    if ($this->isZ()) {
-                        $ret['zmin'] = $bbox['zmin'] < $ret['zmin'] ? $bbox['zmin'] : $ret['zmin'];
-                        $ret['zmax'] = $bbox['zmax'] > $ret['zmax'] ? $bbox['zmax'] : $ret['zmax'];
+                    if ($bbox['xmin'] < $ret['xmin']) {
+                        $ret['xmin'] = $bbox['xmin'];
                     }
-                    if ($this->isM()) {
-                        $ret['mmin'] = ($ret['mmin'] === false || $bbox['mmin'] < $ret['mmin']) ? $bbox['mmin'] : $ret['mmin'];
-                        $ret['mmax'] = ($ret['mmax'] === false || $bbox['mmax'] > $ret['mmax']) ? $bbox['mmax'] : $ret['mmax'];
+                    if ($bbox['xmax'] > $ret['xmax']) {
+                        $ret['xmax'] = $bbox['xmax'];
+                    }
+                    if ($bbox['ymin'] < $ret['ymin']) {
+                        $ret['ymin'] = $bbox['ymin'];
+                    }
+                    if ($bbox['ymax'] > $ret['ymax']) {
+                        $ret['ymax'] = $bbox['ymax'];
+                    }
+                    if ($is_z) {
+                        if ($bbox['zmin'] < $ret['zmin']) {
+                            $ret['zmin'] = $bbox['zmin'];
+                        }
+                        if ($bbox['zmax'] > $ret['zmax']) {
+                            $ret['zmax'] = $bbox['zmax'];
+                        }
+                    }
+                    if ($is_m) {
+                        if ($ret['mmin'] === false || $bbox['mmin'] < $ret['mmin']) {
+                            $ret['mmin'] = $bbox['mmin'];
+                        }
+                        if ($ret['mmax'] === false || $bbox['mmax'] > $ret['mmax']) {
+                            $ret['mmax'] = $bbox['mmax'];
+                        }
                     }
                 }
             }
