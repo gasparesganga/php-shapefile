@@ -1011,12 +1011,16 @@ class ShapefileWriter extends Shapefile
             case Shapefile::DBF_TYPE_NUMERIC:
             case Shapefile::DBF_TYPE_FLOAT:
                 if ($value !== null) {
-                    $value          = trim($value);
-                    $flag_negative  = substr($value, 0, 1) === '-';
-                    $intpart        = $this->sanitizeNumber(strpos($value, '.') === false ? $value : strstr($value, '.', true));
-                    $decpart        = $this->sanitizeNumber(substr(strstr($value, '.', false), 1));
-                    $decpart        = strlen($decpart) > $decimals ? substr($decpart, 0, $decimals) : str_pad($decpart, $decimals, '0', STR_PAD_RIGHT);
-                    $value          = ($flag_negative ? '-' : '') . $intpart . ($decimals > 0 ? '.' : '') . $decpart;
+                    if (is_string($value)) {
+                        $value          = trim($value);
+                        $flag_negative  = substr($value, 0, 1) === '-';
+                        $intpart        = $this->sanitizeNumber(strpos($value, '.') === false ? $value : strstr($value, '.', true));
+                        $decpart        = $this->sanitizeNumber(substr(strstr($value, '.', false), 1));
+                        $decpart        = strlen($decpart) > $decimals ? substr($decpart, 0, $decimals) : str_pad($decpart, $decimals, '0', STR_PAD_RIGHT);
+                        $value          = ($flag_negative ? '-' : '') . $intpart . ($decimals > 0 ? '.' : '') . $decpart;
+                    } else {
+                        $value = number_format(floatval($value), $decimals, '.', '');
+                    }
                     if (strlen($value) > $size) {
                         throw new ShapefileException(Shapefile::ERR_INPUT_NUMERIC_VALUE_OVERFLOW, "value:$intpart - size:($size.$decimals)");
                     }
