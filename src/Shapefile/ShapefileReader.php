@@ -20,6 +20,23 @@ use Shapefile\Geometry\MultiPolygon;
 
 class ShapefileReader extends Shapefile implements \Iterator
 {
+    /** SHP read methods hash */
+    private static $shp_read_methods = [
+        Shapefile::SHAPE_TYPE_NULL          => 'readNull',
+        Shapefile::SHAPE_TYPE_POINT         => 'readPoint',
+        Shapefile::SHAPE_TYPE_POLYLINE      => 'readPolyLine',
+        Shapefile::SHAPE_TYPE_POLYGON       => 'readPolygon',
+        Shapefile::SHAPE_TYPE_MULTIPOINT    => 'readMultiPoint',
+        Shapefile::SHAPE_TYPE_POINTZ        => 'readPointZ',
+        Shapefile::SHAPE_TYPE_POLYLINEZ     => 'readPolyLineZ',
+        Shapefile::SHAPE_TYPE_POLYGONZ      => 'readPolygonZ',
+        Shapefile::SHAPE_TYPE_MULTIPOINTZ   => 'readMultiPointZ',
+        Shapefile::SHAPE_TYPE_POINTM        => 'readPointM',
+        Shapefile::SHAPE_TYPE_POLYLINEM     => 'readPolyLineM',
+        Shapefile::SHAPE_TYPE_POLYGONM      => 'readPolygonM',
+        Shapefile::SHAPE_TYPE_MULTIPOINTM   => 'readMultiPointM',
+    ];
+    
     /**
      * @var array   DBF field names map: fields are numerically indexed into DBF files.
      */
@@ -478,7 +495,6 @@ class ShapefileReader extends Shapefile implements \Iterator
         // Offset (in 16bit words)
         $shp_offset = $this->readInt32B(Shapefile::FILE_SHX) * 2;
         
-        
         // === SHP ===
         $this->setFilePointer(Shapefile::FILE_SHP, $shp_offset);
         // Skip record header
@@ -489,23 +505,7 @@ class ShapefileReader extends Shapefile implements \Iterator
             throw new ShapefileException(Shapefile::ERR_SHP_WRONG_RECORD_TYPE, $shape_type);
         }
         // Read Geometry
-        $methods = [
-            Shapefile::SHAPE_TYPE_NULL          => 'readNull',
-            Shapefile::SHAPE_TYPE_POINT         => 'readPoint',
-            Shapefile::SHAPE_TYPE_POLYLINE      => 'readPolyLine',
-            Shapefile::SHAPE_TYPE_POLYGON       => 'readPolygon',
-            Shapefile::SHAPE_TYPE_MULTIPOINT    => 'readMultiPoint',
-            Shapefile::SHAPE_TYPE_POINTZ        => 'readPointZ',
-            Shapefile::SHAPE_TYPE_POLYLINEZ     => 'readPolyLineZ',
-            Shapefile::SHAPE_TYPE_POLYGONZ      => 'readPolygonZ',
-            Shapefile::SHAPE_TYPE_MULTIPOINTZ   => 'readMultiPointZ',
-            Shapefile::SHAPE_TYPE_POINTM        => 'readPointM',
-            Shapefile::SHAPE_TYPE_POLYLINEM     => 'readPolyLineM',
-            Shapefile::SHAPE_TYPE_POLYGONM      => 'readPolygonM',
-            Shapefile::SHAPE_TYPE_MULTIPOINTM   => 'readMultiPointM',
-        ];
-        $Geometry = $this->{$methods[$shape_type]}();
-        
+        $Geometry = $this->{self::$shp_read_methods[$shape_type]}();
         
         // === DBF ===
         $this->setFilePointer(Shapefile::FILE_DBF, $this->dbf_header_size + (($this->current_record - 1) * $this->dbf_record_size));
@@ -572,7 +572,7 @@ class ShapefileReader extends Shapefile implements \Iterator
                     break;
                     
                 case Shapefile::DBF_TYPE_LOGICAL:
-                    $value = ($value === '?') ? null : in_array($value, ['Y', 'y', 'T', 't']);
+                    $value = ($value === Shapefile::DBF_VALUE_NULL) ? null : strpos(Shapefile::DBF_VALUE_MASK_TRUE, $value) !== false;
                     break;
             }
         }

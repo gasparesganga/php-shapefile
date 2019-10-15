@@ -236,6 +236,10 @@ abstract class Shapefile
     const DBF_EOF_MARKER        = 0x1a;
     const DBF_FIELD_TERMINATOR  = 0x0d;
     const DBF_MAX_FIELD_COUNT   = 128;
+    const DBF_VALUE_MASK_TRUE   = 'TtYy';
+    const DBF_VALUE_FALSE       = 'F';
+    const DBF_VALUE_NULL        = '?';
+    const DBF_VALUE_TRUE        = 'T';
     const DBF_VERSION           = 0x03;
     const DBF_VERSION_WITH_DBT  = 0x83;
     /** DBT files constants */

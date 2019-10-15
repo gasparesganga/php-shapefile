@@ -13,6 +13,23 @@ namespace Shapefile;
 
 class ShapefileWriter extends Shapefile
 {
+    /** SHP write methods hash */
+    private static $shp_write_methods = [
+        Shapefile::SHAPE_TYPE_NULL          => 'writeNull',
+        Shapefile::SHAPE_TYPE_POINT         => 'writePoint',
+        Shapefile::SHAPE_TYPE_POLYLINE      => 'writePolyLine',
+        Shapefile::SHAPE_TYPE_POLYGON       => 'writePolygon',
+        Shapefile::SHAPE_TYPE_MULTIPOINT    => 'writeMultiPoint',
+        Shapefile::SHAPE_TYPE_POINTZ        => 'writePointZ',
+        Shapefile::SHAPE_TYPE_POLYLINEZ     => 'writePolyLineZ',
+        Shapefile::SHAPE_TYPE_POLYGONZ      => 'writePolygonZ',
+        Shapefile::SHAPE_TYPE_MULTIPOINTZ   => 'writeMultiPointZ',
+        Shapefile::SHAPE_TYPE_POINTM        => 'writePointM',
+        Shapefile::SHAPE_TYPE_POLYLINEM     => 'writePolyLineM',
+        Shapefile::SHAPE_TYPE_POLYGONM      => 'writePolygonM',
+        Shapefile::SHAPE_TYPE_MULTIPOINTM   => 'writeMultiPointM',
+    ];
+    
     /**
      * @var array   Array of canonicalized absolute pathnames of open files.
      */
@@ -839,37 +856,25 @@ class ShapefileWriter extends Shapefile
     private function writeSHPAndSHXData(Geometry\Geometry $Geometry)
     {
         // === SHP ===
-        $array          = [];
-        $write_method   = 'writeNull';
-        if (!$Geometry->isEmpty()) {
-            $class = get_class($Geometry);
-            $array = $Geometry->getArray();
-            if ($class == 'Shapefile\Geometry\Linestring' || $class == 'Shapefile\Geometry\Polygon') {
+        if ($Geometry->isEmpty()) {
+            $method = self::$shp_write_methods[Shapefile::SHAPE_TYPE_NULL];
+            $array  = [];  
+        } else {
+            $method         = self::$shp_write_methods[$this->getShapeType(Shapefile::FORMAT_INT)];
+            $array          = $Geometry->getArray();
+            $shape_basetype = $this->getBasetype();
+            if (($shape_basetype == Shapefile::SHAPE_TYPE_POLYLINE || $shape_basetype == Shapefile::SHAPE_TYPE_POLYGON) && !isset($array['parts'])) {
                 $array = [
                     'numparts'  => 1,
                     'parts'     => [$array],
                 ];
-            }
-            $methods = [
-                'Shapefile\Geometry\Point'              => 'writePoint',
-                'Shapefile\Geometry\MultiPoint'         => 'writeMultiPoint',
-                'Shapefile\Geometry\Linestring'         => 'writePolyLine',
-                'Shapefile\Geometry\MultiLinestring'    => 'writePolyLine',
-                'Shapefile\Geometry\Polygon'            => 'writePolygon',
-                'Shapefile\Geometry\MultiPolygon'       => 'writePolygon',
-            ];
-            $write_method = $methods[$class];
-            if ($Geometry->isZ()) {
-                $write_method .= 'Z';
-            } elseif ($Geometry->isM()) {
-                $write_method .= 'M';
             }
         }
         // Save current offset and leave space for record header
         $old_shp_offset = $this->getFilePointer(Shapefile::FILE_SHP);
         $this->setFileOffset(Shapefile::FILE_SHP, 8);
         // Write Geometry
-        $this->{$write_method}($array, $Geometry->getBoundingBox());
+        $this->{$method}($array, $Geometry->getBoundingBox());
         // Update record header
         $shp_content_length = (($this->getFilePointer(Shapefile::FILE_SHP) - $old_shp_offset) / 2) - 4;
         $this->setFilePointer(Shapefile::FILE_SHP, $old_shp_offset);
@@ -994,11 +999,11 @@ class ShapefileWriter extends Shapefile
             
             case Shapefile::DBF_TYPE_LOGICAL:
                 if ($value === null) {
-                    $value = '?';
-                } elseif ($value === true || in_array(substr(trim($value), 0, 1), ['Y', 'y', 'T', 't'])) {
-                    $value = 'T';
+                    $value = Shapefile::DBF_VALUE_NULL;
+                } elseif ($value === true || strpos(Shapefile::DBF_VALUE_MASK_TRUE, substr(trim($value), 0, 1)) !== false) {
+                    $value = Shapefile::DBF_VALUE_TRUE;
                 } else {
-                    $value = 'F';
+                    $value = Shapefile::DBF_VALUE_FALSE;
                 }
                 break;
             
