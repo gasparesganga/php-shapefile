@@ -13,33 +13,53 @@ namespace Shapefile;
 
 class ShapefileWriter extends Shapefile
 {
-    /** SHP write methods hash */
-    private static $shp_write_methods = [
-        Shapefile::SHAPE_TYPE_NULL          => 'writeNull',
-        Shapefile::SHAPE_TYPE_POINT         => 'writePoint',
-        Shapefile::SHAPE_TYPE_POLYLINE      => 'writePolyLine',
-        Shapefile::SHAPE_TYPE_POLYGON       => 'writePolygon',
-        Shapefile::SHAPE_TYPE_MULTIPOINT    => 'writeMultiPoint',
-        Shapefile::SHAPE_TYPE_POINTZ        => 'writePointZ',
-        Shapefile::SHAPE_TYPE_POLYLINEZ     => 'writePolyLineZ',
-        Shapefile::SHAPE_TYPE_POLYGONZ      => 'writePolygonZ',
-        Shapefile::SHAPE_TYPE_MULTIPOINTZ   => 'writeMultiPointZ',
-        Shapefile::SHAPE_TYPE_POINTM        => 'writePointM',
-        Shapefile::SHAPE_TYPE_POLYLINEM     => 'writePolyLineM',
-        Shapefile::SHAPE_TYPE_POLYGONM      => 'writePolygonM',
-        Shapefile::SHAPE_TYPE_MULTIPOINTM   => 'writeMultiPointM',
+    /** SHP pack methods hash */
+    private static $shp_pack_methods = [
+        Shapefile::SHAPE_TYPE_NULL          => 'packNull',
+        Shapefile::SHAPE_TYPE_POINT         => 'packPoint',
+        Shapefile::SHAPE_TYPE_POLYLINE      => 'packPolyLine',
+        Shapefile::SHAPE_TYPE_POLYGON       => 'packPolygon',
+        Shapefile::SHAPE_TYPE_MULTIPOINT    => 'packMultiPoint',
+        Shapefile::SHAPE_TYPE_POINTZ        => 'packPointZ',
+        Shapefile::SHAPE_TYPE_POLYLINEZ     => 'packPolyLineZ',
+        Shapefile::SHAPE_TYPE_POLYGONZ      => 'packPolygonZ',
+        Shapefile::SHAPE_TYPE_MULTIPOINTZ   => 'packMultiPointZ',
+        Shapefile::SHAPE_TYPE_POINTM        => 'packPointM',
+        Shapefile::SHAPE_TYPE_POLYLINEM     => 'packPolyLineM',
+        Shapefile::SHAPE_TYPE_POLYGONM      => 'packPolygonM',
+        Shapefile::SHAPE_TYPE_MULTIPOINTM   => 'packMultiPointM',
     ];
     
-    /**
-     * @var array   Array of canonicalized absolute pathnames of open files.
-     */
-    private $filenames = [];
+    /** Buffered file types */
+    private static $buffered_files = [
+        Shapefile::FILE_SHP,
+        Shapefile::FILE_SHX,
+        Shapefile::FILE_DBF,
+        Shapefile::FILE_DBT,
+    ];
     
+    
+    /**
+     * @var array   File writing buffers.
+     */
+    private $buffers = [];
+    
+    /**
+     * @var integer Buffered records count.
+     */
+    private $buffered_record_count = 0;
+     
     /**
      * @var integer Number of records.
      */
     private $tot_records = 0;
      
+    /**
+     * @var integer Current offset in SHP file and buffer (in 16-bit words).
+     *              First 50 16-bit are reserved for file header.
+     */
+    private $shp_current_offset = 50; 
+    
     /**
      * @var integer Next available block in DBT file.
      */
@@ -63,6 +83,7 @@ class ShapefileWriter extends Shapefile
     {
         // Options
         $this->initOptions([
+            Shapefile::OPTION_BUFFERED_RECORDS,
             Shapefile::OPTION_CPG_ENABLE_FOR_DEFAULT_CHARSET,
             Shapefile::OPTION_DBF_FORCE_ALL_CAPS,
             Shapefile::OPTION_DBF_NULL_PADDING_CHAR,
@@ -75,7 +96,10 @@ class ShapefileWriter extends Shapefile
         ], $options);
         
         // Open files
-        $this->filenames = $this->openFiles($files, true);
+        $this->openFiles($files, true);
+        
+        // Init Buffers
+        $this->buffers = array_fill_keys(self::$buffered_files, '');   
     }
     
     /**
@@ -86,26 +110,43 @@ class ShapefileWriter extends Shapefile
      */
     public function __destruct()
     {
-        // Write SHP, SHX, DBF and DBT headers
-        $this->writeSHPOrSHXHeader(Shapefile::FILE_SHP);
-        $this->writeSHPOrSHXHeader(Shapefile::FILE_SHX);
-        $this->writeDBFHeader();
-        $this->writeDBTHeader();
-        
-        // Write PRJ
-        if ($this->isFileOpen(Shapefile::FILE_PRJ) && $this->getPRJ() !== null) {
-            $this->writeString(Shapefile::FILE_PRJ, $this->getPRJ());
+        // Flush buffers
+        $this->writeBuffers();
+        // Write DBF EOF marker to buffer
+        $this->writeData(Shapefile::FILE_DBF, $this->packChar(Shapefile::DBF_EOF_MARKER));
+        // Set file pointers to beginning of files
+        foreach (self::$buffered_files as $file_type) {
+            $this->setFilePointer($file_type, 0);
+        }
+        // Write SHP, SHX, DBF and DBT headers to buffers
+        $this->bufferData(Shapefile::FILE_SHP, $this->packSHPOrSHXHeader($this->getFileSize(Shapefile::FILE_SHP)));
+        $this->bufferData(Shapefile::FILE_SHX, $this->packSHPOrSHXHeader($this->getFileSize(Shapefile::FILE_SHX)));
+        $this->bufferData(Shapefile::FILE_DBF, $this->packDBFHeader());
+        if ($this->dbt_next_available_block > 0) {
+            $this->bufferData(Shapefile::FILE_DBT, $this->packDBTHeader());
+        }
+        // Write buffers containing the headers
+        $this->writeBuffers();
+        // Reset file pointers
+        foreach (self::$buffered_files as $file_type) {
+            $this->resetFilePointer($file_type);
         }
         
-        // Write CPG
+        
+        // Write PRJ file
+        if ($this->isFileOpen(Shapefile::FILE_PRJ) && $this->getPRJ() !== null) {
+            $this->writeData(Shapefile::FILE_PRJ, $this->packString($this->getPRJ()));
+        }
+        
+        // Write CPG file
         if ($this->isFileOpen(Shapefile::FILE_CPG) && ($this->getCharset() !== Shapefile::DBF_DEFAULT_CHARSET || $this->getOption(Shapefile::OPTION_CPG_ENABLE_FOR_DEFAULT_CHARSET))) {
-            $this->writeString(Shapefile::FILE_CPG, $this->getCharset());
+            $this->writeData(Shapefile::FILE_CPG, $this->packString($this->getCharset()));
         }
         
         // Close files and delete empty ones
         $this->closeFiles();
         if ($this->getOption(Shapefile::OPTION_DELETE_EMPTY_FILES)) {
-            foreach ($this->filenames as $filename) {
+            foreach ($this->getFilenames() as $filename) {
                 if (filesize($filename) === 0) {
                     unlink($filename);
                 }
@@ -254,15 +295,15 @@ class ShapefileWriter extends Shapefile
     public function writeRecord(Geometry\Geometry $Geometry)
     {
         // Init headers
-        if (!$this->flag_init_headers) {
-            $this->writeNulPadding(Shapefile::FILE_SHP, Shapefile::SHP_HEADER_SIZE);
-            $this->writeNulPadding(Shapefile::FILE_SHX, Shapefile::SHX_HEADER_SIZE);
-            $this->writeNulPadding(Shapefile::FILE_DBF, $this->getDBFHeaderSize());
+        if (!$this->flag_init_headers) { 
+            $this->bufferData(Shapefile::FILE_SHP, $this->packNulPadding(Shapefile::SHP_HEADER_SIZE));
+            $this->bufferData(Shapefile::FILE_SHX, $this->packNulPadding(Shapefile::SHX_HEADER_SIZE));
+            $this->bufferData(Shapefile::FILE_DBF, $this->packNulPadding($this->getDBFHeaderSize()));
             if (in_array(Shapefile::DBF_TYPE_MEMO, $this->arrayColumn($this->getFields(), 'type'))) {
                 if (!$this->isFileOpen(Shapefile::FILE_DBT)) {
                     throw new ShapefileException(Shapefile::ERR_FILE_MISSING, strtoupper(Shapefile::FILE_DBT));
                 }
-                $this->writeNulPadding(Shapefile::FILE_DBT, Shapefile::DBT_BLOCK_SIZE);
+                $this->bufferData(Shapefile::FILE_DBT, $this->packNulPadding(Shapefile::DBT_BLOCK_SIZE));
                 ++$this->dbt_next_available_block;
             }
             $this->flag_init_headers = true;
@@ -272,142 +313,191 @@ class ShapefileWriter extends Shapefile
         $this->pairGeometry($Geometry);
         ++$this->tot_records;
         
-        // Write data
-        $this->writeSHPAndSHXData($Geometry);
-        $this->writeDBFData($Geometry);
+        // Write data to buffers
+        $this->bufferSHPAndSHXData($Geometry);
+        $this->bufferDBFData($Geometry);
+        ++$this->buffered_record_count;
+        
+        // Eventually flush buffers
+        $option_buffered_records = $this->getOption(Shapefile::OPTION_BUFFERED_RECORDS);
+        if ($option_buffered_records > 0 && $this->buffered_record_count == $option_buffered_records) {
+            $this->writeBuffers();
+        }
+    }
+    
+    /**
+     * Writes buffers to files.
+     */
+    public function flushBuffer()
+    {
+        $this->writeBuffers();
     }
     
     
     
     /////////////////////////////// PRIVATE ///////////////////////////////
     /**
-     * Packs data according to the given format and writes it to a file.
+     * Packs an unsigned char into binary string.
      *
-     * @param   string  $file_type          File type.
-     * @param   string  $format             Format code. See php pack() documentation.
-     * @param   string  $data               String value to write.
-     * @param   bool    $invert_endianness  Set this optional flag to true when reading floating point numbers on a big endian machine.
+     * @param   string  $data       Value to pack.
      *
-     * @return  mixed
+     * @return  string
      */
-    private function writeData($file_type, $format, $data, $invert_endianness = false)
+    private function packChar($data)
     {
-        $data = pack($format, $data);
-        if ($invert_endianness) {
+        return pack('C', $data);
+    }
+    
+    /**
+     * Packs an unsigned short, 16 bit, little endian byte order, into binary string.
+     *
+     * @param   string  $data       Value to pack.
+     *
+     * @return  string
+     */
+    private function packInt16L($data)
+    {
+        return pack('v', $data);
+    }
+    
+    /**
+     * Packs an unsigned long, 32 bit, big endian byte order, into binary string.
+     *
+     * @param   string  $data       Value to pack.
+     *
+     * @return  string
+     */
+    private function packInt32B($data)
+    {
+        return pack('N', $data);
+    }
+    
+    /**
+     * Packs an unsigned long, 32 bit, little endian byte order, into binary string.
+     *
+     * @param   string  $data       Value to pack.
+     *
+     * @return  string
+     */
+    private function packInt32L($data)
+    {
+        return pack('V', $data);
+    }
+    
+    /**
+     * Packs a double, 64 bit, little endian byte order, into binary string.
+     *
+     * @param   string  $data       Value to pack.
+     *
+     * @return  string
+     */
+    private function packDoubleL($data)
+    {
+        $data = pack('d', $data);
+        if ($this->isBigEndianMachine()) {
             $data = strrev($data);
         }
+        return $data;
+    }
+    
+    /**
+     * Packs a string into binary string.
+     *
+     * @param   string  $data       Value to pack.
+     *
+     * @return  string
+     */
+    private function packString($data)
+    {
+        return pack('A*', $data);
+    }
+    
+    /**
+     * Packs a NUL-padding of given length into binary string.
+     *
+     * @param   string  $lenght     Length of the padding to pack.
+     *
+     * @return  string
+     */
+    private function packNulPadding($lenght)
+    {
+        return pack('a*', str_repeat("\0", $lenght));
+    }
+    
+    /**
+     * Stores binary string packed data into a buffer.
+     *
+     * @param   string  $file_type      File type.
+     * @param   string  $data           String value to write.
+     */
+    private function bufferData($file_type, $data)
+    {
+        $this->buffers[$file_type] .= $data;
+    }
+    
+    /**
+     * Writes binary string packed data to a file.
+     *
+     * @param   string  $file_type      File type.
+     * @param   string  $data           Binary string packed data to write.
+     */
+    private function writeData($file_type, $data)
+    {
         if ($this->fileWrite($file_type, $data) === false) {
             throw new ShapefileException(Shapefile::ERR_FILE_WRITING);
         }
     }
     
     /**
-     * Writes an unsigned char from a resource handle.
-     *
-     * @param   string  $file_type      File type.
-     * @param   integer $data           Value to write.
+     * Writes buffers to files.
      */
-    private function writeChar($file_type, $data)
+    private function writeBuffers()
     {
-        $this->writeData($file_type, 'C', $data);
+        foreach (self::$buffered_files as $file_type) {
+            if ($this->buffers[$file_type] !== '') {
+                $this->writeData($file_type, $this->buffers[$file_type]);
+                $this->buffers[$file_type] = '';
+            }
+        }
+        $this->buffered_record_count = 0;
     }
     
-    /**
-     * Writes an unsigned short, 16 bit, little endian byte order, to a resource handle.
-     *
-     * @param   string  $file_type      File type.
-     * @param   integer $data           Value to write.
-     */
-    private function writeInt16L($file_type, $data)
-    {
-        $this->writeData($file_type, 'v', $data);
-    }
     
     /**
-     * Writes an unsigned long, 32 bit, big endian byte order, to a resource handle.
-     *
-     * @param   string  $file_type      File type.
-     * @param   integer $data           Value to write.
-     */
-    private function writeInt32B($file_type, $data)
-    {
-        $this->writeData($file_type, 'N', $data);
-    }
-    
-    /**
-     * Writes an unsigned long, 32 bit, little endian byte order, to a resource handle.
-     *
-     * @param   string  $file_type      File type.
-     * @param   integer $data           Value to write.
-     */
-    private function writeInt32L($file_type, $data)
-    {
-        $this->writeData($file_type, 'V', $data);
-    }
-    
-    /**
-     * Writes a double, 64 bit, little endian byte order, to a resource handle.
-     *
-     * @param   string  $file_type      File type.
-     * @param   float   $data           Value to write.
-     */
-    private function writeDoubleL($file_type, $data)
-    {
-        $this->writeData($file_type, 'd', $data, $this->isBigEndianMachine());
-    }
-    
-    /**
-     * Writes a string to a resource handle.
-     *
-     * @param   string  $file_type      File type.
-     * @param   string  $data           Value to write.
-     */
-    private function writeString($file_type, $data)
-    {
-        $this->writeData($file_type, 'A*', $data);
-    }
-    
-    /**
-     * Writes a NUL-padding of given length to a resource handle.
-     *
-     * @param   string  $file_type      File type.
-     * @param   string  $lenght         Length of the padding to write.
-     */
-    private function writeNulPadding($file_type, $lenght)
-    {
-        $this->writeData($file_type, 'a*', str_repeat("\0", $lenght));
-    }
-        
-    
-    /**
-     * Writes some XY coordinates to the Shapefile.
+     * Packs some XY coordinates into binary string.
      *
      * @param   array   $coordinates    Array with "x" and "y" coordinates.
+     *
+     * @return  string
      */
-    private function writeXY($coordinates)
+    private function packXY($coordinates)
     {
-        $this->writeDoubleL(Shapefile::FILE_SHP, $coordinates['x']);
-        $this->writeDoubleL(Shapefile::FILE_SHP, $coordinates['y']);
+        return $this->packDoubleL($coordinates['x'])
+             . $this->packDoubleL($coordinates['y']);
     }
     
     /**
-     * Writes a Z coordinate to the Shapefile.
+     * Packs a Z coordinate into binary string.
      *
      * @param   array   $coordinates    Array with "z" coordinate.
+     *
+     * @return  string
      */
-    private function writeZ($coordinates)
+    private function packZ($coordinates)
     {
-        $this->writeDoubleL(Shapefile::FILE_SHP, $this->getOption(Shapefile::OPTION_SUPPRESS_Z) ? 0 : $coordinates['z']);
+        return $this->packDoubleL($this->getOption(Shapefile::OPTION_SUPPRESS_Z) ? 0 : $coordinates['z']);
     }
     
     /**
-     * Writes an M coordinate to the Shapefile.
+     * Packs an M coordinate into binary string.
      *
      * @param   array   $coordinates    Array with "m" coordinate.
+     *
+     * @return  string
      */
-    private function writeM($coordinates)
+    private function packM($coordinates)
     {
-        $this->writeDoubleL(Shapefile::FILE_SHP, $this->getOption(Shapefile::OPTION_SUPPRESS_M) ? 0 : $this->parseM($coordinates['m']));
+        return $this->packDoubleL($this->getOption(Shapefile::OPTION_SUPPRESS_M) ? 0 : $this->parseM($coordinates['m']));
     }
     
     /**
@@ -423,275 +513,322 @@ class ShapefileWriter extends Shapefile
     
     
     /**
-     * Writes an XY bounding box into a file.
+     * Packs an XY bounding box into binary string.
      *
-     * @param   string  $file_type      File type.
      * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax values.
+     *
+     * @return  string
      */
-    private function writeXYBoundingBox($file_type, $bounding_box)
+    private function packXYBoundingBox($bounding_box)
     {
-        $this->writeDoubleL($file_type, $bounding_box['xmin']);
-        $this->writeDoubleL($file_type, $bounding_box['ymin']);
-        $this->writeDoubleL($file_type, $bounding_box['xmax']);
-        $this->writeDoubleL($file_type, $bounding_box['ymax']);
+        return $this->packDoubleL($bounding_box['xmin'])
+             . $this->packDoubleL($bounding_box['ymin'])
+             . $this->packDoubleL($bounding_box['xmax'])
+             . $this->packDoubleL($bounding_box['ymax']);
     }
     
     /**
-     * Writes a Z range into a file.
+     * Packs a Z range into binary string.
      *
-     * @param   string  $file_type      File type.
      * @param   array   $bounding_box   Associative array with zmin and zmax values.
-     */
-    private function writeZRange($file_type, $bounding_box)
-    {
-        $this->writeDoubleL($file_type, $this->getOption(Shapefile::OPTION_SUPPRESS_Z) ? 0 : $bounding_box['zmin']);
-        $this->writeDoubleL($file_type, $this->getOption(Shapefile::OPTION_SUPPRESS_Z) ? 0 : $bounding_box['zmax']);
-    }
-    
-    /**
-     * Writes an M range into a file.
      *
-     * @param   string  $file_type      File type.
-     * @param   array   $bounding_box   Associative array with mmin and mmax values.
+     * @return  string
      */
-    private function writeMRange($file_type, $bounding_box)
+    private function packZRange($bounding_box)
     {
-        $this->writeDoubleL($file_type, $this->getOption(Shapefile::OPTION_SUPPRESS_M) ? 0 : $this->parseM($bounding_box['mmin']));
-        $this->writeDoubleL($file_type, $this->getOption(Shapefile::OPTION_SUPPRESS_M) ? 0 : $this->parseM($bounding_box['mmax']));
+        return $this->packDoubleL($this->getOption(Shapefile::OPTION_SUPPRESS_Z) ? 0 : $bounding_box['zmin'])
+             . $this->packDoubleL($this->getOption(Shapefile::OPTION_SUPPRESS_Z) ? 0 : $bounding_box['zmax']);
+    }
+    
+    /**
+     * Packs an M range into binary string.
+     *
+     * @param   array   $bounding_box   Associative array with mmin and mmax values.
+     *
+     * @return  string
+     */
+    private function packMRange($bounding_box)
+    {
+        return $this->packDoubleL($this->getOption(Shapefile::OPTION_SUPPRESS_M) ? 0 : $this->parseM($bounding_box['mmin']))
+             . $this->packDoubleL($this->getOption(Shapefile::OPTION_SUPPRESS_M) ? 0 : $this->parseM($bounding_box['mmax']));
     }
     
     
     /**
-     * Writes a Null shape to the Shapefile.
+     * Packs a Null shape into binary string.
+     *
+     * @return  string
      */
-    private function writeNull()
+    private function packNull()
     {
         // Shape type
-        $this->writeInt32L(Shapefile::FILE_SHP, Shapefile::SHAPE_TYPE_NULL);
+        return $this->packInt32L(Shapefile::SHAPE_TYPE_NULL);
     }
     
     
     /**
-     * Writes a Point shape to the Shapefile.
+     * Packs a Point shape into binary string.
      *
      * @param   array   $coordinates    Array with "x" and "y" coordinates.
-     * @param   string  $shape_type     Optional shape type to write in the record.
+     * @param   string  $shape_type     Optional shape type to pack in the record.
+     *
+     * @return  string
      */
-    private function writePoint($coordinates, $shape_type = Shapefile::SHAPE_TYPE_POINT)
+    private function packPoint($coordinates, $shape_type = Shapefile::SHAPE_TYPE_POINT)
     {
         // Shape type
-        $this->writeInt32L(Shapefile::FILE_SHP, $shape_type);
+        $ret = $this->packInt32L($shape_type);
         // XY Coordinates
-        $this->writeXY($coordinates);
+        $ret .= $this->packXY($coordinates);
+        
+        return $ret;
     }
     
     /**
-     * Writes a PointM shape to the Shapefile.
+     * Packs a PointM shape into binary string.
      *
      * @param   array   $coordinates    Array with "m" coordinate.
+     *
+     * @return  string
      */
-    private function writePointM($coordinates)
+    private function packPointM($coordinates)
     {
         // XY Point
-        $this->writePoint($coordinates, Shapefile::SHAPE_TYPE_POINTM);
+        $ret = $this->packPoint($coordinates, Shapefile::SHAPE_TYPE_POINTM);
         // M Coordinate
-        $this->writeM($coordinates);
+        $ret .= $this->packM($coordinates);
+        
+        return $ret;
     }
     
     /**
-     * Writes a PointZ shape to the Shapefile.
+     * Packs a PointZ shape into binary string.
      *
      * @param   array   $coordinates    Array with "z" coordinate.
+     *
+     * @return  string
      */
-    private function writePointZ($coordinates)
+    private function packPointZ($coordinates)
     {
         // XY Point
-        $this->writePoint($coordinates, Shapefile::SHAPE_TYPE_POINTZ);
+        $ret = $this->packPoint($coordinates, Shapefile::SHAPE_TYPE_POINTZ);
         // Z Coordinate
-        $this->writeZ($coordinates);
+        $ret .= $this->packZ($coordinates);
         // M Coordinate
-        $this->writeM($coordinates);
+        $ret .= $this->packM($coordinates);
+        
+        return $ret;
     }
     
     
     /**
-     * Writes a MultiPoint shape to the Shapefile.
+     * Packs a MultiPoint shape into binary string.
      *
      * @param   array   $array          Array with "numpoints" and "points" elements.
      
-     * @param   string  $shape_type     Optional shape type to write in the record.
+     * @param   string  $shape_type     Optional shape type to pack in the record.
      * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax values.
+     *
+     * @return  string
      */
-    private function writeMultiPoint($array, $bounding_box, $shape_type = Shapefile::SHAPE_TYPE_MULTIPOINT)
+    private function packMultiPoint($array, $bounding_box, $shape_type = Shapefile::SHAPE_TYPE_MULTIPOINT)
     {
         // Shape type
-        $this->writeInt32L(Shapefile::FILE_SHP, $shape_type);
+        $ret = $this->packInt32L($shape_type);
         // XY Bounding Box
-        $this->writeXYBoundingBox(Shapefile::FILE_SHP, $bounding_box);
+        $ret .= $this->packXYBoundingBox($bounding_box);
         // NumPoints
-        $this->writeInt32L(Shapefile::FILE_SHP, $array['numpoints']);
+        $ret .= $this->packInt32L($array['numpoints']);
         // Points
         foreach ($array['points'] as $coordinates) {
-            $this->writeXY($coordinates);
+            $ret .= $this->packXY($coordinates);
         }
+        
+        return $ret;
     }
     
     /**
-     * Writes a MultiPointM shape to the Shapefile.
+     * Packs a MultiPointM shape into binary string.
      *
      * @param   array   $array          Array with "numpoints" and "points" elements.
      * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax, mmin, mmax values.
+     *
+     * @return  string
      */
-    private function writeMultiPointM($array, $bounding_box)
+    private function packMultiPointM($array, $bounding_box)
     {
         // XY MultiPoint
-        $this->writeMultiPoint($array, $bounding_box, Shapefile::SHAPE_TYPE_MULTIPOINTM);
+        $ret = $this->packMultiPoint($array, $bounding_box, Shapefile::SHAPE_TYPE_MULTIPOINTM);
         // M Range
-        $this->writeMRange(Shapefile::FILE_SHP, $bounding_box);
+        $ret .= $this->packMRange($bounding_box);
         // M Array
         foreach ($array['points'] as $coordinates) {
-            $this->writeM($coordinates);
+            $ret .= $this->packM($coordinates);
         }
+        
+        return $ret;
     }
     
     /**
-     * Writes a MultiPointZ shape to the Shapefile.
+     * Packs a MultiPointZ shape into binary string.
      *
      * @param   array   $array          Array with "numpoints" and "points" elements.
      * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax, zmin, zmax, mmin, mmax values.
+     *
+     * @return  string
      */
-    private function writeMultiPointZ($array, $bounding_box)
+    private function packMultiPointZ($array, $bounding_box)
     {
         // XY MultiPoint
-        $this->writeMultiPoint($array, $bounding_box, Shapefile::SHAPE_TYPE_MULTIPOINTZ);
+        $ret = $this->packMultiPoint($array, $bounding_box, Shapefile::SHAPE_TYPE_MULTIPOINTZ);
         // Z Range
-        $this->writeZRange(Shapefile::FILE_SHP, $bounding_box);
+        $ret .= $this->packZRange($bounding_box);
         // Z Array
         foreach ($array['points'] as $coordinates) {
-            $this->writeZ($coordinates);
+            $ret .= $this->packZ($coordinates);
         }
         // M Range
-        $this->writeMRange(Shapefile::FILE_SHP, $bounding_box);
+        $ret .= $this->packMRange($bounding_box);
         // M Array
         foreach ($array['points'] as $coordinates) {
-            $this->writeM($coordinates);
+            $ret .= $this->packM($coordinates);
         }
+        
+        return $ret;
     }
     
     
     /**
-     * Writes a PolyLine shape to the Shapefile.
+     * Packs a PolyLine shape into binary string.
      *
      * @param   array   $array          Array with "numparts" and "parts" elements.
      * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax values.
-     * @param   string  $shape_type     Optional shape type to write in the record.
+     * @param   string  $shape_type     Optional shape type to pack in the record.
+     *
+     * @return  string
      */
-    private function writePolyLine($array, $bounding_box, $shape_type = Shapefile::SHAPE_TYPE_POLYLINE)
+    private function packPolyLine($array, $bounding_box, $shape_type = Shapefile::SHAPE_TYPE_POLYLINE)
     {
         // Shape type
-        $this->writeInt32L(Shapefile::FILE_SHP, $shape_type);
+        $ret = $this->packInt32L($shape_type);
         // XY Bounding Box
-        $this->writeXYBoundingBox(Shapefile::FILE_SHP, $bounding_box);
+        $ret .= $this->packXYBoundingBox($bounding_box);
         // NumParts
-        $this->writeInt32L(Shapefile::FILE_SHP, $array['numparts']);
+        $ret .= $this->packInt32L($array['numparts']);
         // NumPoints
-        $this->writeInt32L(Shapefile::FILE_SHP, array_sum($this->arrayColumn($array['parts'], 'numpoints')));
+        $ret .= $this->packInt32L(array_sum($this->arrayColumn($array['parts'], 'numpoints')));
         // Parts
         $part_first_index = 0;
         foreach ($array['parts'] as $part) {
-            $this->writeInt32L(Shapefile::FILE_SHP, $part_first_index);
+            $ret .= $this->packInt32L($part_first_index);
             $part_first_index += $part['numpoints'];
         }
         // Points
         foreach ($array['parts'] as $part) {
             foreach ($part['points'] as $coordinates) {
-                $this->writeXY($coordinates);
+                $ret .= $this->packXY($coordinates);
             }
         }
+        
+        return $ret;
     }
     
     /**
-     * Writes a PolyLineM shape to the Shapefile.
+     * Packs a PolyLineM shape into binary string.
      *
      * @param   array   $array          Array with "numparts" and "parts" elements.
      * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax, mmin, mmax values.
-     * @param   string  $shape_type     Optional shape type to write in the record.
+     * @param   string  $shape_type     Optional shape type to pack in the record.
+     *
+     * @return  string
      */
-    private function writePolyLineM($array, $bounding_box, $shape_type = Shapefile::SHAPE_TYPE_POLYLINEM)
+    private function packPolyLineM($array, $bounding_box, $shape_type = Shapefile::SHAPE_TYPE_POLYLINEM)
     {
         // XY PolyLine
-        $this->writePolyLine($array, $bounding_box, $shape_type);
+        $ret = $this->packPolyLine($array, $bounding_box, $shape_type);
         // M Range
-        $this->writeMRange(Shapefile::FILE_SHP, $bounding_box);
+        $ret .= $this->packMRange($bounding_box);
         // M Array
         foreach ($array['parts'] as $part) {
             foreach ($part['points'] as $coordinates) {
-                $this->writeM($coordinates);
+                $ret .= $this->packM($coordinates);
             }
         }
+        
+        return $ret;
     }
     
     /**
-     * Writes a PolyLineZ shape to the Shapefile.
+     * Packs a PolyLineZ shape into binary string.
      *
      * @param   array   $array          Array with "numparts" and "parts" elements.
      * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax, zmin, zmax, mmin, mmax values.
-     * @param   string  $shape_type     Optional shape type to write in the record.
+     * @param   string  $shape_type     Optional shape type to pack in the record.
+     *
+     * @return  string
      */
-    private function writePolyLineZ($array, $bounding_box, $shape_type = Shapefile::SHAPE_TYPE_POLYLINEZ)
+    private function packPolyLineZ($array, $bounding_box, $shape_type = Shapefile::SHAPE_TYPE_POLYLINEZ)
     {
         // XY PolyLine
-        $this->writePolyLine($array, $bounding_box, $shape_type);
+        $ret = $this->packPolyLine($array, $bounding_box, $shape_type);
         // Z Range
-        $this->writeZRange(Shapefile::FILE_SHP, $bounding_box);
+        $ret .= $this->packZRange($bounding_box);
         // Z Array
         foreach ($array['parts'] as $part) {
             foreach ($part['points'] as $coordinates) {
-                $this->writeZ($coordinates);
+                $ret .= $this->packZ($coordinates);
             }
         }
          // M Range
-        $this->writeMRange(Shapefile::FILE_SHP, $bounding_box);
+        $ret .= $this->packMRange($bounding_box);
         // M Array
         foreach ($array['parts'] as $part) {
             foreach ($part['points'] as $coordinates) {
-                $this->writeM($coordinates);
+                $ret .= $this->packM($coordinates);
             }
         }
+        
+        return $ret;
     }
     
     
     /**
-     * Writes a Polygon shape to the Shapefile.
+     * Packs a Polygon shape into binary string.
      *
      * @param   array   $array          Array with "numparts" and "parts" elements.
      * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax values.
+     *
+     * @return  string
      */
-    private function writePolygon($array, $bounding_box)
+    private function packPolygon($array, $bounding_box)
     {
-        $this->writePolyLine($this->parsePolygon($array), $bounding_box, Shapefile::SHAPE_TYPE_POLYGON);
+        return $this->packPolyLine($this->parsePolygon($array), $bounding_box, Shapefile::SHAPE_TYPE_POLYGON);
     }
     
     /**
-     * Writes a PolygonM shape to the Shapefile.
+     * Packs a PolygonM shape into binary string.
      *
      * @param   array   $array          Array with "numparts" and "parts" elements.
      * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax, mmin, mmax values.
+     *
+     * @return  string
      */
-    private function writePolygonM($array, $bounding_box)
+    private function packPolygonM($array, $bounding_box)
     {
-        $this->writePolyLineM($this->parsePolygon($array), $bounding_box, Shapefile::SHAPE_TYPE_POLYGONM);
+        return $this->packPolyLineM($this->parsePolygon($array), $bounding_box, Shapefile::SHAPE_TYPE_POLYGONM);
     }
     
     /**
-     * Writes a PolygonZ shape to the Shapefile.
+     * Packs a PolygonZ shape into binary string.
      *
      * @param   array   $array          Array with "numparts" and "parts" elements.
      * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax, zmin, zmax, mmin, mmax values.
+     *
+     * @return  string
      */
-    private function writePolygonZ($array, $bounding_box)
+    private function packPolygonZ($array, $bounding_box)
     {
-        $this->writePolyLineZ($this->parsePolygon($array), $bounding_box, Shapefile::SHAPE_TYPE_POLYGONZ);
+        return $this->packPolyLineZ($this->parsePolygon($array), $bounding_box, Shapefile::SHAPE_TYPE_POLYGONZ);
     }
     
     /**
@@ -723,144 +860,19 @@ class ShapefileWriter extends Shapefile
     }
     
     
-    /**
-     * Writes SHP or SHX file header.
-     *
-     * @param   string  $file_type      File type.
-     */
-    private function writeSHPOrSHXHeader($file_type)
-    {
-        $this->setFilePointer($file_type, 0);
-        
-        // File Code
-        $this->writeInt32B($file_type, Shapefile::SHP_FILE_CODE);
-        
-        // Unused bytes
-        $this->setFileOffset($file_type, 20);
-        
-        // File Length
-        $this->writeInt32B($file_type, $this->getFileSize($file_type) / 2);
-        
-        // Version
-        $this->writeInt32L($file_type, Shapefile::SHP_VERSION);
-        
-        // Shape Type
-        $this->writeInt32L($file_type, $this->getShapeType(Shapefile::FORMAT_INT));
-        
-        //Bounding Box
-        $bounding_box = $this->getBoundingBox();
-        $this->writeXYBoundingBox($file_type, $bounding_box);
-        $this->writeZRange($file_type, $this->isZ() ? $bounding_box : ['zmin' => 0, 'zmax' => 0]);
-        $this->writeMRange($file_type, $this->isM() ? $bounding_box : ['mmin' => 0, 'mmax' => 0]);
-        
-        $this->resetFilePointer($file_type);
-    }
-    
-    /**
-     * Writes DBF file header.
-     */
-    private function writeDBFHeader()
-    {
-        $this->setFilePointer(Shapefile::FILE_DBF, 0);
-        
-        // Version number
-        $this->writeChar(Shapefile::FILE_DBF, $this->dbt_next_available_block > 0 ? Shapefile::DBF_VERSION_WITH_DBT : Shapefile::DBF_VERSION);
-        
-        // Date of last update
-        $this->writeChar(Shapefile::FILE_DBF, intval(date('Y')) - 1900);
-        $this->writeChar(Shapefile::FILE_DBF, intval(date('m')));
-        $this->writeChar(Shapefile::FILE_DBF, intval(date('d')));
-        
-        // Number of records
-        $this->writeInt32L(Shapefile::FILE_DBF, $this->tot_records);
-
-        // Header size
-        $this->writeInt16L(Shapefile::FILE_DBF, $this->getDBFHeaderSize());
-        
-         // Record size
-        $this->writeInt16L(Shapefile::FILE_DBF, $this->getDBFRecordSize());
-        
-        // Reserved bytes
-        $this->setFileOffset(Shapefile::FILE_DBF, 20);
-        
-        // Field descriptor array
-        foreach ($this->getFields() as $name => $field) {
-            // Name
-            $this->writeString(Shapefile::FILE_DBF, str_pad($name, 10, "\0", STR_PAD_RIGHT));
-            $this->setFileOffset(Shapefile::FILE_DBF, 1);
-            // Type
-            $this->writeString(Shapefile::FILE_DBF, $field['type']);
-            $this->setFileOffset(Shapefile::FILE_DBF, 4);
-            // Size
-            $this->writeChar(Shapefile::FILE_DBF, $field['size']);
-            // Decimals
-            $this->writeChar(Shapefile::FILE_DBF, $field['decimals']);
-            $this->setFileOffset(Shapefile::FILE_DBF, 14);
-        }
-        
-        // Field terminator
-        $this->writeChar(Shapefile::FILE_DBF, Shapefile::DBF_FIELD_TERMINATOR);
-        
-        // EOF Marker
-        $this->resetFilePointer(Shapefile::FILE_DBF);
-        $this->writeChar(Shapefile::FILE_DBF, Shapefile::DBF_EOF_MARKER);
-    }
-    
-    /**
-     * Writes DBT file header.
-     */
-    private function writeDBTHeader()
-    {
-        if ($this->dbt_next_available_block === 0) {
-            return;
-        }
-        
-        $this->setFilePointer(Shapefile::FILE_DBT, 0);
-        
-        // Next available block 
-        $this->writeInt32L(Shapefile::FILE_DBT, $this->dbt_next_available_block);
-        
-        // Reserved bytes
-        $this->setFileOffset(Shapefile::FILE_DBT, 12);
-        
-        // Version number
-        $this->writeChar(Shapefile::FILE_DBT, Shapefile::DBF_VERSION);
-        
-        $this->resetFilePointer(Shapefile::FILE_DBT);
-    }
-    
-    /**
-     * Computes DBF header size.
-     * 32bytes + (number of fields x 32) + 1 (field terminator character)
-     */
-    private function getDBFHeaderSize()
-    {
-        return 33 + (32 * count($this->getFields()));
-    }
-    
-    /**
-     * Computes DBF record size.
-     * Sum of all fields sizes + 1 (record deleted flag).
-     */
-    private function getDBFRecordSize()
-    {
-        return array_sum($this->arrayColumn($this->getFields(), 'size')) + 1;
-    }
-    
-    
     /*
-     * Writes Geometry data to SHP and SHX files.
+     * Stores binary string packed Geometry data into SHP and SHX buffers.
      *
      * @param   Geometry    $Geometry   Geometry to write.
      */
-    private function writeSHPAndSHXData(Geometry\Geometry $Geometry)
+    private function bufferSHPAndSHXData(Geometry\Geometry $Geometry)
     {
-        // === SHP ===
+        // Choose Geometry pack method
         if ($Geometry->isEmpty()) {
-            $method = self::$shp_write_methods[Shapefile::SHAPE_TYPE_NULL];
-            $array  = [];  
+            $method         = self::$shp_pack_methods[Shapefile::SHAPE_TYPE_NULL];
+            $array          = [];  
         } else {
-            $method         = self::$shp_write_methods[$this->getShapeType(Shapefile::FORMAT_INT)];
+            $method         = self::$shp_pack_methods[$this->getShapeType(Shapefile::FORMAT_INT)];
             $array          = $Geometry->getArray();
             $shape_basetype = $this->getBasetype();
             if (($shape_basetype == Shapefile::SHAPE_TYPE_POLYLINE || $shape_basetype == Shapefile::SHAPE_TYPE_POLYGON) && !isset($array['parts'])) {
@@ -870,35 +882,37 @@ class ShapefileWriter extends Shapefile
                 ];
             }
         }
-        // Save current offset and leave space for record header
-        $old_shp_offset = $this->getFilePointer(Shapefile::FILE_SHP);
-        $this->setFileOffset(Shapefile::FILE_SHP, 8);
-        // Write Geometry
-        $this->{$method}($array, $Geometry->getBoundingBox());
-        // Update record header
-        $shp_content_length = (($this->getFilePointer(Shapefile::FILE_SHP) - $old_shp_offset) / 2) - 4;
-        $this->setFilePointer(Shapefile::FILE_SHP, $old_shp_offset);
-        $this->writeInt32B(Shapefile::FILE_SHP, $this->tot_records);
-        $this->writeInt32B(Shapefile::FILE_SHP, $shp_content_length);
-        $this->resetFilePointer(Shapefile::FILE_SHP);
+        // Pack Geometry data
+        $shp_data           = $this->{$method}($array, $Geometry->getBoundingBox());
+        // Compute content lenght in 16-bit words
+        $shp_content_length = strlen($shp_data) / 2;
+        // Write header and data to SHP buffer
+        $this->bufferData(Shapefile::FILE_SHP,
+              $this->packInt32B($this->tot_records)
+            . $this->packInt32B($shp_content_length)
+            . $shp_data
+        );
         
-        // === SHX ===
-        // Offset (in 16bit words)
-        $this->writeInt32B(Shapefile::FILE_SHX, $old_shp_offset / 2);
-        // Content Length (in 16bit words)
-        $this->writeInt32B(Shapefile::FILE_SHX, $shp_content_length);
+        // Write data to SHX buffer
+        $this->bufferData(Shapefile::FILE_SHX, 
+              $this->packInt32B($this->shp_current_offset)
+            . $this->packInt32B($shp_content_length)
+        );
+        
+        // Compute current SHP offset (curent + record lenght + header lenght)
+        $this->shp_current_offset += $shp_content_length + 4;
     }
     
     /*
-     * Writes Geometry data to DBF file.
+     * Stores binary string packed Geometry data into DBF buffer.
      *
      * @param   Geometry    $Geometry   Geometry to write.
      */
-    private function writeDBFData(Geometry\Geometry $Geometry)
+    private function bufferDBFData(Geometry\Geometry $Geometry)
     {
-        // === DBF ===
         // Deleted flag
-        $this->writeChar(Shapefile::FILE_DBF, $Geometry->isDeleted() ? Shapefile::DBF_DELETED_MARKER : Shapefile::DBF_BLANK);
+        $buffer = $this->packChar($Geometry->isDeleted() ? Shapefile::DBF_DELETED_MARKER : Shapefile::DBF_BLANK);
+        
         // Data
         $data = $Geometry->getDataArray();
         if ($this->getOption(Shapefile::OPTION_DBF_FORCE_ALL_CAPS)) {
@@ -913,27 +927,30 @@ class ShapefileWriter extends Shapefile
             }
             $value = $this->encodeFieldValue($field['type'], $field['size'], $field['decimals'], $data[$name]);
             // Memo (DBT)
-            if ($field['type'] === Shapefile::DBF_TYPE_MEMO && $value !== null) {
-                $value = $this->writeDBTData($value, $field['size']);
+            if ($field['type'] == Shapefile::DBF_TYPE_MEMO && $value !== null) {
+                $value = $this->bufferDBTData($value, $field['size']);
             }
             // Null
             if ($value === null) {
                 $value = str_repeat(($this->getOption(Shapefile::OPTION_DBF_NULL_PADDING_CHAR) !== null ? $this->getOption(Shapefile::OPTION_DBF_NULL_PADDING_CHAR) : chr(Shapefile::DBF_BLANK)), $field['size']);
             }
-            // Write value to file
-            $this->writeString(Shapefile::FILE_DBF, $value);
+            // Add value to temp buffer
+            $buffer .= $this->packString($value);
         }
+        
+        // Write data to DBF buffer
+        $this->bufferData(Shapefile::FILE_DBF, $buffer);
     }
     
     /*
-     * Writes data to DBT file and returns first block number.
+     * Writes data to DBT file and returns first block number used.
      *
      * @param   string  $data       Data to write
      * @param   integer $field_size Size of the DBF field.
      *
      * @return  string
      */
-    private function writeDBTData($data, $field_size)
+    private function bufferDBTData($data, $field_size)
     {
         // Ignore empty values
         if ($data === '') {
@@ -949,9 +966,9 @@ class ShapefileWriter extends Shapefile
         }
         // Add TWO field terminators
         $data .= str_repeat(chr(Shapefile::DBT_FIELD_TERMINATOR), 2);
-        // Write data
+        // Write data to DBT buffer
         foreach (str_split($data, Shapefile::DBT_BLOCK_SIZE) as $block) {
-            $this->writeString(Shapefile::FILE_DBT, str_pad($block, Shapefile::DBT_BLOCK_SIZE, "\0", STR_PAD_RIGHT));
+            $this->bufferData(Shapefile::FILE_DBT, $this->packString(str_pad($block, Shapefile::DBT_BLOCK_SIZE, "\0", STR_PAD_RIGHT)));
             ++$this->dbt_next_available_block; 
         }
         
@@ -1060,6 +1077,125 @@ class ShapefileWriter extends Shapefile
     private function sanitizeNumber($value)
     {
         return preg_replace('/[^0-9]/', '', $value);
+    }
+    
+    
+    /**
+     * Packs SHP or SHX file header.
+     *
+     * @param   integer $file_size      File size in bytes.
+     */
+    private function packSHPOrSHXHeader($file_size)
+    {
+        $ret = '';
+        
+        // File Code
+        $ret .= $this->packInt32B(Shapefile::SHP_FILE_CODE);
+        
+        // Unused bytes
+        $ret .= $this->packNulPadding(20);
+        
+        // File Length (in 16-bit words)
+        $ret .= $this->packInt32B($file_size / 2);
+        
+        // Version
+        $ret .= $this->packInt32L(Shapefile::SHP_VERSION);
+        
+        // Shape Type
+        $ret .= $this->packInt32L($this->getShapeType(Shapefile::FORMAT_INT));
+        
+        //Bounding Box
+        $bounding_box = $this->getBoundingBox();
+        $ret .= $this->packXYBoundingBox($bounding_box);
+        $ret .= $this->packZRange($this->isZ() ? $bounding_box : ['zmin' => 0, 'zmax' => 0]);
+        $ret .= $this->packMRange($this->isM() ? $bounding_box : ['mmin' => 0, 'mmax' => 0]);
+        
+        return $ret;
+    }
+    
+    /**
+     * Packs DBF file header.
+     */
+    private function packDBFHeader()
+    {
+        $ret = '';
+        
+        // Version number
+        $ret .= $this->packChar($this->dbt_next_available_block > 0 ? Shapefile::DBF_VERSION_WITH_DBT : Shapefile::DBF_VERSION);
+        
+        // Date of last update
+        $ret .= $this->packChar(intval(date('Y')) - 1900);
+        $ret .= $this->packChar(intval(date('m')));
+        $ret .= $this->packChar(intval(date('d')));
+        
+        // Number of records
+        $ret .= $this->packInt32L($this->tot_records);
+
+        // Header size
+        $ret .= $this->packInt16L($this->getDBFHeaderSize());
+        
+         // Record size
+        $ret .= $this->packInt16L($this->getDBFRecordSize());
+        
+        // Reserved bytes
+        $ret .= $this->packNulPadding(20);
+        
+        // Field descriptor array
+        foreach ($this->getFields() as $name => $field) {
+            // Name
+            $ret .= $this->packString(str_pad($name, 10, "\0", STR_PAD_RIGHT));
+            $ret .= $this->packNulPadding(1);
+            // Type
+            $ret .= $this->packString($field['type']);
+            $ret .= $this->packNulPadding(4);
+            // Size
+            $ret .= $this->packChar($field['size']);
+            // Decimals
+            $ret .= $this->packChar($field['decimals']);
+            $ret .= $this->packNulPadding(14);
+        }
+        
+        // Field terminator
+        $ret .= $this->packChar(Shapefile::DBF_FIELD_TERMINATOR);
+        
+        return $ret;
+    }
+    
+    /**
+     * Packs DBT file header.
+     */
+    private function packDBTHeader()
+    {
+        $ret = '';
+        
+        // Next available block 
+        $ret .= $this->packInt32L($this->dbt_next_available_block);
+        
+        // Reserved bytes
+        $ret .= $this->packNulPadding(12);
+        
+        // Version number
+        $ret .= $this->packChar(Shapefile::DBF_VERSION);
+        
+        return $ret;
+    }
+    
+    /**
+     * Computes DBF header size.
+     * 32bytes + (number of fields x 32) + 1 (field terminator character)
+     */
+    private function getDBFHeaderSize()
+    {
+        return 33 + (32 * count($this->getFields()));
+    }
+    
+    /**
+     * Computes DBF record size.
+     * Sum of all fields sizes + 1 (record deleted flag).
+     */
+    private function getDBFRecordSize()
+    {
+        return array_sum($this->arrayColumn($this->getFields(), 'size')) + 1;
     }
     
     

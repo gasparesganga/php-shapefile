@@ -21,6 +21,15 @@ namespace Shapefile;
 abstract class Shapefile
 {
     /**
+     * Number of records to keep into buffer before writing them.
+     * Use a value equal or less than 0 to keep all records into buffer and write them at once.
+     * ShapefileWriter
+     * @var integer
+     */
+    const OPTION_BUFFERED_RECORDS = 'OPTION_BUFFERED_RECORDS';
+    const OPTION_BUFFERED_RECORDS_DEFAULT = 1;
+    
+    /**
      * Converts from input charset to UTF-8 all strings read from DBF files.
      * ShapefileWriter
      * @var bool
@@ -417,6 +426,12 @@ abstract class Shapefile
     private $files = [];
     
     /**
+     * @var array   Array of canonicalized absolute pathnames of open files.
+     *              It will be populated only if files are NOT passed as stream resources.
+     */
+    private $filenames = [];
+    
+    /**
      * @var array   Options.
      */
     private $options = [];
@@ -432,23 +447,16 @@ abstract class Shapefile
      */
     private $flag_init = false;
     
-    /**
-     * @var bool    Flag representing whether open files were passed as resources or filenames.
-     */
-    private $flag_resources = false;
-    
     
     
     /////////////////////////////// PROTECTED ///////////////////////////////
     /**
      * Opens file pointer resource handles to specified files with binary read or write access.
-     * Returns an array or canonicalized absolute pathnames ONLY IF files are not passed as stream resources.
-     * (They are returned here because files are closed in destructors and working directory may be different!)
+     *
+     * (Filenames are mapped here because files are closed in destructors and working directory may be different!)
      *
      * @param   string|array    $files          Path to SHP file / Array of paths / Array of resource handles of individual files.
      * @param   bool            $write_access   Access type: false = read; true = write;
-     *
-     * @return  array
      */
     protected function openFiles($files, $write_access)
     {
@@ -476,11 +484,9 @@ abstract class Shapefile
             throw new ShapefileException(Shapefile::ERR_FILE_MISSING, strtoupper(Shapefile::FILE_DBF));
         }
         
-        $mode   = $write_access ? 'wb' : 'rb';
-        $ret    = [];
+        $mode = $write_access ? 'wb' : 'rb';
         if ($files === array_filter($files, 'is_resource')) {
             // Resource handles
-            $this->flag_resources = true;
             foreach ($files as $type => $file) {
                 if (get_resource_type($file) != 'stream' || stream_get_meta_data($file)['mode'] != $mode) {
                     throw new ShapefileException(Shapefile::ERR_FILE_INVALID_RESOURCE, strtoupper($type));
@@ -506,15 +512,14 @@ abstract class Shapefile
                         if ($handle === false) {
                             throw new ShapefileException(Shapefile::ERR_FILE_OPEN, $file);
                         }
-                        $this->files[$type] = $handle;
-                        $ret[$type]         = realpath(stream_get_meta_data($handle)['uri']);
+                        $this->files[$type]     = $handle;
+                        $this->filenames[$type] = realpath(stream_get_meta_data($handle)['uri']);
                     } elseif ($required) {
                         throw new ShapefileException(Shapefile::ERR_FILE_EXISTS, $files[$type]);
                     }
                 }
             }
         }
-        return $ret;
     }
     
     /**
@@ -522,25 +527,13 @@ abstract class Shapefile
      */
     protected function closeFiles()
     {
-        if (!$this->flag_resources) {
+        if (count($this->filenames) > 0) {
             foreach ($this->files as $handle) {
                 fclose($handle);
             }
         }
     }
-    
-    /**
-     * Checks if file type has been opened.
-     *
-     * @param   string      $file_type  File type.
-     *
-     * @return  bool
-     */
-    protected function isFileOpen($file_type)
-    {
-        return isset($this->files[$file_type]);
-    }
-    
+        
     /**
      * Reads data from an open resource handle.
      *
@@ -565,6 +558,28 @@ abstract class Shapefile
     protected function fileWrite($file_type, $data)
     {
         return fwrite($this->files[$file_type], $data);
+    }
+    
+    /**
+     * Checks if file type has been opened.
+     *
+     * @param   string      $file_type  File type.
+     *
+     * @return  bool
+     */
+    protected function isFileOpen($file_type)
+    {
+        return isset($this->files[$file_type]);
+    }
+    
+    /**
+     * Gets an array or canonicalized absolute pathnames if files were NOT passed as stream resources, or an empty array if they were.
+     *
+     * @return  array
+     */
+    protected function getFilenames()
+    {
+        return $this->filenames;
     }
     
     /**
