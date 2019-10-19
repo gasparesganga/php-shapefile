@@ -37,6 +37,7 @@ class ShapefileReader extends Shapefile implements \Iterator
         Shapefile::SHAPE_TYPE_MULTIPOINTM   => 'readMultiPointM',
     ];
     
+    
     /**
      * @var array   DBF field names map: fields are numerically indexed into DBF files.
      */
@@ -455,7 +456,7 @@ class ShapefileReader extends Shapefile implements \Iterator
         $this->dbf_fields = [];
         $this->setFilePointer(Shapefile::FILE_DBF, 32);
         while ($this->getFilePointer(Shapefile::FILE_DBF) < $this->dbf_header_size - 1) {
-            $name       = $this->sanitizeDBFFieldName($this->readString(Shapefile::FILE_DBF, 11));
+            $name       = $this->sanitizeDBFFieldName($this->normalizeDBFFieldNameCase($this->readString(Shapefile::FILE_DBF, 11)));
             $type       = $this->readString(Shapefile::FILE_DBF, 1);
             $this->setFileOffset(Shapefile::FILE_DBF, 4);
             $size       = $this->readChar(Shapefile::FILE_DBF);
@@ -492,13 +493,12 @@ class ShapefileReader extends Shapefile implements \Iterator
         
         // === SHX ===
         $this->setFilePointer(Shapefile::FILE_SHX, Shapefile::SHX_HEADER_SIZE + (($this->current_record - 1) * Shapefile::SHX_RECORD_SIZE));
-        // Offset (in 16bit words)
+        // Offset (stored as 16-bit words)
         $shp_offset = $this->readInt32B(Shapefile::FILE_SHX) * 2;
         
         // === SHP ===
-        $this->setFilePointer(Shapefile::FILE_SHP, $shp_offset);
-        // Skip record header
-        $this->setFileOffset(Shapefile::FILE_SHP, 8);
+        // Set file pointer position skipping the 8-bytes record header
+        $this->setFilePointer(Shapefile::FILE_SHP, $shp_offset + 8);
         // Shape type
         $shape_type = $this->readInt32L(Shapefile::FILE_SHP);
         if ($shape_type != Shapefile::SHAPE_TYPE_NULL && $shape_type != $this->getShapeType()) {
@@ -508,12 +508,13 @@ class ShapefileReader extends Shapefile implements \Iterator
         $Geometry = $this->{self::$shp_read_methods[$shape_type]}();
         
         // === DBF ===
-        $this->setFilePointer(Shapefile::FILE_DBF, $this->dbf_header_size + (($this->current_record - 1) * $this->dbf_record_size));
+        $dbf_file_position = $this->dbf_header_size + (($this->current_record - 1) * $this->dbf_record_size);
         // Check if DBF is not corrupted (some "naive" users try to edit the DBF separately...)
-        // Some GIS do not include the last Shapefile::DBF_EOF_MARKER (0x1a) byte in the DBF file, hence the "+ 1" in the following line
-        if ($this->getFilePointer(Shapefile::FILE_DBF) >= ($this->dbf_file_size - $this->dbf_record_size + 1)) {
+        // Some GIS do not include the last Shapefile::DBF_EOF_MARKER (0x1a) byte in the DBF file, hence the "- 1" in the following line
+        if ($dbf_file_position - 1 >= $this->dbf_file_size - $this->dbf_record_size) {
             throw new ShapefileException(Shapefile::ERR_DBF_EOF_REACHED);
         }
+        $this->setFilePointer(Shapefile::FILE_DBF, $dbf_file_position);
         $Geometry->setFlagDeleted($this->readChar(Shapefile::FILE_DBF) === Shapefile::DBF_DELETED_MARKER);
         foreach ($this->dbf_fields as $i => $f) {
             if ($f['ignored']) {
@@ -635,6 +636,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      */
     private function readXYBoundingBox()
     {
+        // Variables are used here because the order of the output array elements is different!
         $xmin = $this->readDoubleL(Shapefile::FILE_SHP);
         $ymin = $this->readDoubleL(Shapefile::FILE_SHP);
         $xmax = $this->readDoubleL(Shapefile::FILE_SHP);

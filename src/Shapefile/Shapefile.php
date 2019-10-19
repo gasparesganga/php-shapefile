@@ -27,7 +27,7 @@ abstract class Shapefile
      * @var integer
      */
     const OPTION_BUFFERED_RECORDS = 'OPTION_BUFFERED_RECORDS';
-    const OPTION_BUFFERED_RECORDS_DEFAULT = 1;
+    const OPTION_BUFFERED_RECORDS_DEFAULT = 10;
     
     /**
      * Converts from input charset to UTF-8 all strings read from DBF files.
@@ -689,7 +689,7 @@ abstract class Shapefile
         // Parse OPTION_DBF_IGNORED_FIELDS
         $k = Shapefile::OPTION_DBF_IGNORED_FIELDS;
         if (array_key_exists($k, $this->options)) {
-            $this->options[$k] = is_array($this->options[$k]) ? array_map([$this, 'sanitizeDBFFieldName'], $this->options[$k]) : [];
+            $this->options[$k] = is_array($this->options[$k]) ? array_map([$this, 'normalizeDBFFieldNameCase'], $this->options[$k]) : [];
         }
     }
     
@@ -1039,11 +1039,19 @@ abstract class Shapefile
         if ($input === '') {
             return $input;
         }
-        $ret = substr(preg_replace('/[^a-zA-Z0-9]/', '_', $input), 0, 10);
-        if ($this->getOption(Shapefile::OPTION_DBF_FORCE_ALL_CAPS)) {
-            $ret = strtoupper($ret);
-        }
-        return $ret;
+        return substr(preg_replace('/[^a-zA-Z0-9]/', '_', $input), 0, 10);
+    }
+    
+    /**
+     * Normalize field name case according to OPTION_DBF_FORCE_ALL_CAPS status.
+     *
+     * @param   string  $input      Field name to be case-normalized.
+     *
+     * @return  string
+     */
+    protected function normalizeDBFFieldNameCase($input)
+    {
+        return $this->getOption(Shapefile::OPTION_DBF_FORCE_ALL_CAPS) ? strtoupper($input) : $input;
     }
     
     
