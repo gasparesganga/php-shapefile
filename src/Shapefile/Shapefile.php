@@ -311,11 +311,8 @@ abstract class Shapefile
     const ERR_DBF_MAX_FIELD_COUNT_REACHED = 'ERR_DBF_MAX_FIELD_COUNT_REACHED';
     const ERR_DBF_MAX_FIELD_COUNT_REACHED_MESSAGE = "Cannot add other fields, maximum number of fields in a DBF file reached";
     
-    const ERR_DBF_FIELD_NAME_NOT_UNIQUE = 'ERR_DBF_FIELD_NAME_NOT_UNIQUE';
-    const ERR_DBF_FIELD_NAME_NOT_UNIQUE_MESSAGE = "Field name must be unique in DBF file";
-    
     const ERR_DBF_FIELD_NAME_NOT_VALID = 'ERR_DBF_FIELD_NAME_NOT_VALID';
-    const ERR_DBF_FIELD_NAME_NOT_VALID_MESSAGE = "Field name can be maximum 10 characters and contain only numbers, digits and underscores";
+    const ERR_DBF_FIELD_NAME_NOT_VALID_MESSAGE = "Too many field names conflicting";
     
     const ERR_DBF_FIELD_TYPE_NOT_VALID = 'ERR_DBF_FIELD_TYPE_NOT_VALID';
     const ERR_DBF_FIELD_TYPE_NOT_VALID_MESSAGE = "Field type must be CHAR, DATE, LOGICAL, MEMO or NUMERIC";
@@ -904,8 +901,8 @@ abstract class Shapefile
      * Adds a field to the shapefile definition.
      * Returns the effective field name after eventual sanitization.
      * 
-     * @param   string  $name               Name of the field. Maximum 10 characters.
-     *                                      Only letters, numbers and underscores are allowed.
+     * @param   string  $name               Name of the field. Invalid names will be sanitized
+     *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      * @param   string  $type               Type of the field. It can be on of the following:
      *                                      - Shapefile::DBF_TYPE_CHAR
      *                                      - Shapefile::DBF_TYPE_DATE
@@ -915,12 +912,10 @@ abstract class Shapefile
      *                                      - Shapefile::DBF_TYPE_FLOAT
      * @param   integer $size               Lenght of the field, depending on the type.
      * @param   integer $decimals           Optional number of decimal digits for numeric type.
-     * @param   bool    $flag_sanitize_name Optional flag to automatically replace illegal characters
-     *                                      in the name with underscores. Defaults to true.
      *
      * @return  string
      */
-    protected function addField($name, $type, $size, $decimals, $flag_sanitize_name = true)
+    protected function addField($name, $type, $size, $decimals)
     {
         // Check init
         if ($this->flag_init) {
@@ -931,27 +926,17 @@ abstract class Shapefile
             throw new ShapefileException(Shapefile::ERR_DBF_MAX_FIELD_COUNT_REACHED, Shapefile::DBF_MAX_FIELD_COUNT);
         }
         
-        // Sanitize name
-        $sanitized_name = $this->sanitizeDBFFieldName($name);
-        if ($flag_sanitize_name) {
-            $name = $sanitized_name;
-        } elseif ($name !== $sanitized_name) {
-            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_NAME_NOT_VALID, $name);
-        }
-        
-        // Check if name already exists
-        if (array_key_exists(strtoupper($name), array_change_key_case($this->fields, CASE_UPPER))) {
-            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_NAME_NOT_UNIQUE, $name);
-        }
+        // Sanitize name and normalize case
+        $name = $this->normalizeDBFFieldNameCase($this->sanitizeDBFFieldName($name));
         
         // Check type
         if (
-            $type !== Shapefile::DBF_TYPE_CHAR      &&
-            $type !== Shapefile::DBF_TYPE_DATE      &&
-            $type !== Shapefile::DBF_TYPE_LOGICAL   &&
-            $type !== Shapefile::DBF_TYPE_MEMO      &&
-            $type !== Shapefile::DBF_TYPE_NUMERIC   &&
-            $type !== Shapefile::DBF_TYPE_FLOAT
+                $type !== Shapefile::DBF_TYPE_CHAR
+            &&  $type !== Shapefile::DBF_TYPE_DATE
+            &&  $type !== Shapefile::DBF_TYPE_LOGICAL
+            &&  $type !== Shapefile::DBF_TYPE_MEMO
+            &&  $type !== Shapefile::DBF_TYPE_NUMERIC
+            &&  $type !== Shapefile::DBF_TYPE_FLOAT
         ) {
             throw new ShapefileException(Shapefile::ERR_DBF_FIELD_TYPE_NOT_VALID, $type);
         }
@@ -1023,24 +1008,6 @@ abstract class Shapefile
         return $this->fields;
     }
     
-    
-    /**
-     * Returns a valid name for DBF fields.
-     *
-     * Only letters, numbers and underscores are allowed, everything else is converted to underscores.
-     * Truncated at 10 characters.
-     *
-     * @param   string  $input      Raw name to be sanitized.
-     *
-     * @return  string
-     */
-    protected function sanitizeDBFFieldName($input)
-    {
-        if ($input === '') {
-            return $input;
-        }
-        return substr(preg_replace('/[^a-zA-Z0-9]/', '_', $input), 0, 10);
-    }
     
     /**
      * Normalize field name case according to OPTION_DBF_FORCE_ALL_CAPS status.
@@ -1135,6 +1102,40 @@ abstract class Shapefile
         }
         // Mark Shapefile as initialized
         $this->flag_init = true;
+    }
+    
+    
+    
+    /////////////////////////////// PRIVATE ///////////////////////////////
+    /**
+     * Returns a valid name for a DBF field.
+     *
+     * Only letters, numbers and underscores are allowed, everything else is converted to underscores.
+     * Field names get truncated to 10 characters and conflicting ones are truncated to 8 characters adding a number from 1 to 99.
+     *
+     * @param   string  $input      Raw name to be sanitized.
+     *
+     * @return  string
+     */
+    private function sanitizeDBFFieldName($input)
+    {
+        if ($input === '') {
+            return $input;
+        }
+        
+        $ret        = substr(preg_replace('/[^a-zA-Z0-9]/', '_', $input), 0, 10);
+        $fieldnames = array_fill_keys(array_keys(array_change_key_case($this->fields, CASE_UPPER)), true);
+        if (isset($fieldnames[strtoupper($ret)])) {
+            $ret = substr($ret, 0, 8) . '_1';
+            while (isset($fieldnames[strtoupper($ret)])) {
+                $n = intval(trim(substr($ret, -2), '_')) + 1;
+                if ($n > 99) {
+                    throw new ShapefileException(Shapefile::ERR_DBF_FIELD_NAME_NOT_VALID, $input);
+                }
+                $ret = substr($ret, 0, -2) . str_pad($n, 2, '_', STR_PAD_LEFT);
+            }
+        }
+        return $ret;
     }
     
 }

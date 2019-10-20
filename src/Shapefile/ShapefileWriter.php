@@ -180,110 +180,104 @@ class ShapefileWriter extends Shapefile
         parent::setCharset($charset);
     }
     
-    public function addField($name, $type, $size, $decimals, $flag_sanitize_name = true)
+    public function addField($name, $type, $size, $decimals)
     {
-        return parent::addField($name, $type, $size, $decimals, $flag_sanitize_name);
+        return parent::addField($name, $type, $size, $decimals);
     }
     
     /**
      * Adds a char field to the Shapefile definition.
      * Returns the effective field name after eventual sanitization.
      * 
-     * @param   string  $name               Name of the field. Maximum 10 characters.
+     * @param   string  $name               Name of the field. Invalid names will be sanitized
+     *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      *                                      Only letters, numbers and underscores are allowed.
      * @param   integer $size               Lenght of the field, between 1 and 254 characters. Defaults to 254.
-     * @param   bool    $flag_sanitize_name Optional flag to automatically replace illegal characters
-     *                                      in the name with underscores. Defaults to true.
      *
      * @return  string
      */
-    public function addCharField($name, $size = 254, $flag_sanitize_name = true)
+    public function addCharField($name, $size = 254)
     {
-        return $this->addField($name, Shapefile::DBF_TYPE_CHAR, $size, 0, $flag_sanitize_name);
+        return parent::addField($name, Shapefile::DBF_TYPE_CHAR, $size, 0);
     }
     
     /**
      * Adds a date field to the Shapefile definition.
      * Returns the effective field name after eventual sanitization.
      * 
-     * @param   string  $name               Name of the field. Maximum 10 characters.
+     * @param   string  $name               Name of the field. Invalid names will be sanitized
+     *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      *                                      Only letters, numbers and underscores are allowed.
-     * @param   bool    $flag_sanitize_name Optional flag to automatically replace illegal characters
-     *                                      in the name with underscores. Defaults to true.
      *
      * @return  string
      */
-    public function addDateField($name, $flag_sanitize_name = true)
+    public function addDateField($name)
     {
-        return $this->addField($name, Shapefile::DBF_TYPE_DATE, 8, 0, $flag_sanitize_name);
+        return parent::addField($name, Shapefile::DBF_TYPE_DATE, 8, 0);
     }
     
     /**
      * Adds a logical/boolean field to the Shapefile definition.
      * Returns the effective field name after eventual sanitization.
      * 
-     * @param   string  $name               Name of the field. Maximum 10 characters.
+     * @param   string  $name               Name of the field. Invalid names will be sanitized
+     *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      *                                      Only letters, numbers and underscores are allowed.
-     * @param   bool    $flag_sanitize_name Optional flag to automatically replace illegal characters
-     *                                      in the name with underscores. Defaults to true.
      *
      * @return  string
      */
-    public function addLogicalField($name, $flag_sanitize_name = true)
+    public function addLogicalField($name)
     {
-        return $this->addField($name, Shapefile::DBF_TYPE_LOGICAL, 1, 0, $flag_sanitize_name);
+        return parent::addField($name, Shapefile::DBF_TYPE_LOGICAL, 1, 0);
     }
     
     /**
      * Adds a memo field to the Shapefile definition.
      * Returns the effective field name after eventual sanitization.
      * 
-     * @param   string  $name               Name of the field. Maximum 10 characters.
+     * @param   string  $name               Name of the field. Invalid names will be sanitized
+     *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      *                                      Only letters, numbers and underscores are allowed.
-     * @param   bool    $flag_sanitize_name Optional flag to automatically replace illegal characters
-     *                                      in the name with underscores. Defaults to true.
      *
      * @return  string
      */
-    public function addMemoField($name, $flag_sanitize_name = true)
+    public function addMemoField($name)
     {
-        return $this->addField($name, Shapefile::DBF_TYPE_MEMO, 10, 0, $flag_sanitize_name);
+        return parent::addField($name, Shapefile::DBF_TYPE_MEMO, 10, 0);
     }
     
     /**
      * Adds numeric to the Shapefile definition.
      * Returns the effective field name after eventual sanitization.
      * 
-     * @param   string  $name               Name of the field. Maximum 10 characters.
+     * @param   string  $name               Name of the field. Invalid names will be sanitized
+     *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      *                                      Only letters, numbers and underscores are allowed.
      * @param   integer $size               Lenght of the field, between 1 and 254 characters. Defaults to 10.
      * @param   integer $decimals           Optional number of decimal digits. Defaults to 0.
-     * @param   bool    $flag_sanitize_name Optional flag to automatically replace illegal characters
-     *                                      in the name with underscores. Defaults to true.
      *
      * @return  string
      */
-    public function addNumericField($name, $size = 10, $decimals = 0, $flag_sanitize_name = true)
+    public function addNumericField($name, $size = 10, $decimals = 0)
     {
-        return $this->addField($name, Shapefile::DBF_TYPE_NUMERIC, $size, $decimals, $flag_sanitize_name);
+        return parent::addField($name, Shapefile::DBF_TYPE_NUMERIC, $size, $decimals);
     }
     
     /**
      * Adds floating point to the Shapefile definition.
      * Returns the effective field name after eventual sanitization.
      * 
-     * @param   string  $name               Name of the field. Maximum 10 characters.
+     * @param   string  $name               Name of the field. Invalid names will be sanitized
+     *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      *                                      Only letters, numbers and underscores are allowed.
      * @param   integer $size               Lenght of the field, between 1 and 254 characters. Defaults to 20.
      * @param   integer $decimals           Number of decimal digits. Defaults to 10.
-     * @param   bool    $flag_sanitize_name Optional flag to automatically replace illegal characters
-     *                                      in the name with underscores. Defaults to true.
      *
      * @return  string
      */
-    public function addFloatField($name, $size = 20, $decimals = 10, $flag_sanitize_name = true)
+    public function addFloatField($name, $size = 20, $decimals = 10)
     {
-        return $this->addField($name, Shapefile::DBF_TYPE_FLOAT, $size, $decimals, $flag_sanitize_name);
+        return parent::addField($name, Shapefile::DBF_TYPE_FLOAT, $size, $decimals);
     }
     
     

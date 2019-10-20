@@ -456,7 +456,8 @@ class ShapefileReader extends Shapefile implements \Iterator
         $this->dbf_fields = [];
         $this->setFilePointer(Shapefile::FILE_DBF, 32);
         while ($this->getFilePointer(Shapefile::FILE_DBF) < $this->dbf_header_size - 1) {
-            $name       = $this->sanitizeDBFFieldName($this->normalizeDBFFieldNameCase($this->readString(Shapefile::FILE_DBF, 11)));
+            $name       = $this->normalizeDBFFieldNameCase($this->readString(Shapefile::FILE_DBF, 10));
+            $this->setFileOffset(Shapefile::FILE_DBF, 1);
             $type       = $this->readString(Shapefile::FILE_DBF, 1);
             $this->setFileOffset(Shapefile::FILE_DBF, 4);
             $size       = $this->readChar(Shapefile::FILE_DBF);
