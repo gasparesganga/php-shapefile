@@ -111,6 +111,14 @@ abstract class Shapefile
     const OPTION_ENFORCE_POLYGON_CLOSED_RINGS_DEFAULT = true;
     
     /**
+     * Defines behaviour with existing files with the same name.
+     * ShapefileWriter
+     * @var integer
+     */
+    const OPTION_EXISTING_FILES_MODE = 'OPTION_EXISTING_FILES_MODE';
+    const OPTION_EXISTING_FILES_MODE_DEFAULT = self::MODE_PRESERVE;
+    
+    /**
      * Reads all Geometries as Multi.
      * ShapefileReader
      * @var bool
@@ -146,14 +154,6 @@ abstract class Shapefile
     const OPTION_INVERT_POLYGONS_ORIENTATION_DEFAULT = true;
     
     /**
-     * Overwrites existing files with the same name.
-     * ShapefileWriter
-     * @var bool
-     */
-    const OPTION_OVERWRITE_EXISTING_FILES = 'OPTION_OVERWRITE_EXISTING_FILES';
-    const OPTION_OVERWRITE_EXISTING_FILES_DEFAULT = false;
-    
-    /**
      * Suppress M dimension.
      * ShapefileReader and ShapefileWriter
      * @var bool
@@ -177,6 +177,12 @@ abstract class Shapefile
     const FILE_DBT  = 'dbt';
     const FILE_PRJ  = 'prj';
     const FILE_CPG  = 'cpg';
+    
+    
+    /** Possible values for OPTION_EXISTING_FILES_MODE */
+    const MODE_PRESERVE     = 0;
+    const MODE_OVERWRITE    = 1;
+    const MODE_APPEND       = 2;
     
     
     /** Shape types */
@@ -453,7 +459,7 @@ abstract class Shapefile
      * (Filenames are mapped here because files are closed in destructors and working directory may be different!)
      *
      * @param   string|array    $files          Path to SHP file / Array of paths / Array of resource handles of individual files.
-     * @param   bool            $write_access   Access type: false = read; true = write;
+     * @param   bool            $write_access   Access type: false = read; true = write.
      */
     protected function openFiles($files, $write_access)
     {
@@ -481,15 +487,22 @@ abstract class Shapefile
             throw new ShapefileException(Shapefile::ERR_FILE_MISSING, strtoupper(Shapefile::FILE_DBF));
         }
         
-        $mode = $write_access ? 'wb' : 'rb';
+        
+        $mode = $write_access ? 'c+b' : 'rb';
         if ($files === array_filter($files, 'is_resource')) {
             // Resource handles
             foreach ($files as $type => $file) {
-                if (get_resource_type($file) != 'stream' || stream_get_meta_data($file)['mode'] != $mode) {
+                $file_mode = stream_get_meta_data($file)['mode'];
+                if (
+                        get_resource_type($file) != 'stream'
+                    ||  (!$write_access && !in_array($file_mode, array('rb', 'r+b', 'w+b', 'x+b', 'c+b')))
+                    ||  ($write_access && !in_array($file_mode, array('r+b', 'wb', 'w+b', 'xb', 'x+b', 'cb', 'c+b')))
+                ) {
                     throw new ShapefileException(Shapefile::ERR_FILE_INVALID_RESOURCE, strtoupper($type));
                 }
                 $this->files[$type] = $file;
             }
+            $this->filenames = [];
         } else {
             // Filenames
             foreach ([
@@ -503,11 +516,11 @@ abstract class Shapefile
                 if (isset($files[$type])) {
                     if (
                             (!$write_access && is_string($files[$type]) && is_readable($files[$type]) && is_file($files[$type]))
-                        ||  ($write_access && is_string($files[$type]) && is_writable(dirname($files[$type])) && (!file_exists($files[$type]) || $this->getOption(Shapefile::OPTION_OVERWRITE_EXISTING_FILES)))
+                        ||  ($write_access && is_string($files[$type]) && is_writable(dirname($files[$type])) && (!file_exists($files[$type]) || ($this->getOption(Shapefile::OPTION_EXISTING_FILES_MODE) != Shapefile::MODE_PRESERVE && is_readable($files[$type]) && is_file($files[$type]))))
                     ) {
                         $handle = fopen($files[$type], $mode);
                         if ($handle === false) {
-                            throw new ShapefileException(Shapefile::ERR_FILE_OPEN, $file);
+                            throw new ShapefileException(Shapefile::ERR_FILE_OPEN, $files[$type]);
                         }
                         $this->files[$type]     = $handle;
                         $this->filenames[$type] = realpath(stream_get_meta_data($handle)['uri']);
@@ -516,6 +529,9 @@ abstract class Shapefile
                     }
                 }
             }
+        }
+        foreach (array_keys($this->files) as $file_type) {
+            $this->setFilePointer($file_type, 0);
         }
     }
     
@@ -530,37 +546,24 @@ abstract class Shapefile
             }
         }
     }
-        
-    /**
-     * Reads data from an open resource handle.
-     *
-     * @param   string      $file_type  File type.
-     * @param   integer     $length     Number of bytes to read.
-     *
-     * @return  string|bool
-     */
-    protected function fileRead($file_type, $length)
-    {
-        return fread($this->files[$file_type], $length);
-    }
     
     /**
-     * Writes data into an open resource handle.
+     * Truncates an open resource handle to a given length.
      *
-     * @param   string      $file_type  File type.
-     * @param   string      $data       String value to write.
+     * @param   string  $file_type  File type.
+     * @param   integer $size       Optional size to truncate to.
      *
-     * @return  integer|bool
+     * @return  bool
      */
-    protected function fileWrite($file_type, $data)
+    protected function fileTruncate($file_type, $size = 0)
     {
-        return fwrite($this->files[$file_type], $data);
+        ftruncate($this->files[$file_type], $size);
     }
     
     /**
      * Checks if file type has been opened.
      *
-     * @param   string      $file_type  File type.
+     * @param   string  $file_type  File type.
      *
      * @return  bool
      */
@@ -570,7 +573,17 @@ abstract class Shapefile
     }
     
     /**
-     * Gets an array or canonicalized absolute pathnames if files were NOT passed as stream resources, or an empty array if they were.
+     * Gets an array of the open resource handles.
+     *
+     * @return  array
+     */
+    protected function getFiles()
+    {
+        return $this->files;
+    }
+    
+    /**
+     * Gets an array of canonicalized absolute pathnames if files were NOT passed as stream resources, or an empty array if they were.
      *
      * @return  array
      */
@@ -580,7 +593,7 @@ abstract class Shapefile
     }
     
     /**
-     * Gets file size of an open a resource handle.
+     * Gets size of an open a resource handle.
      *
      * @param   string  $file_type  File type (member of $this->files array).
      *
@@ -589,17 +602,6 @@ abstract class Shapefile
     protected function getFileSize($file_type)
     {
         return fstat($this->files[$file_type])['size'];
-    }
-    
-    /**
-     * Sets the pointer position of a resource handle to specified value.
-     *
-     * @param   string  $file_type  File type (member of $this->files array).
-     * @param   integer $position   The position to set the pointer to.
-     */
-    protected function setFilePointer($file_type, $position)
-    {
-        fseek($this->files[$file_type], $position, SEEK_SET);
     }
     
     /**
@@ -612,6 +614,17 @@ abstract class Shapefile
     protected function getFilePointer($file_type)
     {
         return ftell($this->files[$file_type]);
+    }
+    
+    /**
+     * Sets the pointer position of a resource handle to specified value.
+     *
+     * @param   string  $file_type  File type (member of $this->files array).
+     * @param   integer $position   The position to set the pointer to.
+     */
+    protected function setFilePointer($file_type, $position)
+    {
+        fseek($this->files[$file_type], $position, SEEK_SET);
     }
     
     /**
@@ -635,6 +648,35 @@ abstract class Shapefile
         fseek($this->files[$file_type], $offset, SEEK_CUR);
     }
     
+    /**
+     * Reads data from an open resource handle.
+     *
+     * @param   string  $file_type      File type.
+     * @param   integer $length         Number of bytes to read.
+     *
+     * @return  string
+     */
+    protected function readData($file_type, $length)
+    {
+        $ret = @fread($this->files[$file_type], $length);
+        if ($ret === false) {
+            throw new ShapefileException(Shapefile::ERR_FILE_READING);
+        }
+        return $ret;
+    }
+    
+    /**
+     * Writes binary string packed data to an open resource handle.
+     *
+     * @param   string  $file_type      File type.
+     * @param   string  $data           Binary string packed data to write.
+     */
+    protected function writeData($file_type, $data)
+    {
+        if (@fwrite($this->files[$file_type], $data) === false) {
+            throw new ShapefileException(Shapefile::ERR_FILE_WRITING);
+        }
+    }
     
     /**
      * Checks if machine is big endian. 
@@ -810,6 +852,18 @@ abstract class Shapefile
         return $this->custom_bounding_box ?: $this->computed_bounding_box;
     }
     
+    
+    /**
+     * Overwrites computed bounding box for the Shapefile.
+     * No check is carried out except a formal compliance of dimensions.
+     *
+     * @param   array   $bounding_box   Associative array with the xmin, xmax, ymin, ymax and optional zmin, zmax, mmin, mmax values.
+     */
+    protected function overwriteComputedBoundingBox($bounding_box)
+    {
+        $this->computed_bounding_box = $this->sanitizeBoundingBox($bounding_box);
+    }
+    
     /**
      * Sets a custom bounding box for the Shapefile.
      * No check is carried out except a formal compliance of dimensions.
@@ -818,29 +872,7 @@ abstract class Shapefile
      */
     protected function setCustomBoundingBox($bounding_box)
     {
-        $bounding_box = array_intersect_key($bounding_box, array_flip(['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax', 'mmin', 'mmax']));
-        if ($this->getOption(Shapefile::OPTION_SUPPRESS_Z)) {
-            unset($bounding_box['zmin'], $bounding_box['zmax']);
-        }
-        if ($this->getOption(Shapefile::OPTION_SUPPRESS_M)) {
-            unset($bounding_box['mmin'], $bounding_box['mmax']);
-        }
-        
-        if (
-            !isset($bounding_box['xmin'], $bounding_box['xmax'], $bounding_box['ymin'], $bounding_box['ymax'])
-            || (
-                ($this->isZ() && !$this->getOption(Shapefile::OPTION_SUPPRESS_Z) && !isset($bounding_box['zmin'], $bounding_box['zmax']))
-                || (!$this->isZ() && (isset($bounding_box['zmin']) || isset($bounding_box['zmax'])))
-            )
-            || (
-                ($this->isM() && !$this->getOption(Shapefile::OPTION_SUPPRESS_M) && !isset($bounding_box['mmin'], $bounding_box['mmax']))
-                || (!$this->isM() && (isset($bounding_box['mmin']) || isset($bounding_box['mmax'])))
-            )
-        ) {
-            throw new ShapefileException(Shapefile::ERR_SHP_MISMATCHED_BBOX);
-        }
-        
-        $this->custom_bounding_box = $bounding_box;
+        $this->custom_bounding_box = $this->sanitizeBoundingBox($bounding_box);
     }
     
     /**
@@ -999,7 +1031,7 @@ abstract class Shapefile
     }
     
     /**
-     * Gets all fields definition.
+     * Gets all fields definitions.
      * 
      * @return  array
      */
@@ -1087,26 +1119,85 @@ abstract class Shapefile
             }
             $this->computed_bounding_box = $bbox;
         } elseif ($bbox) {
-            $this->computed_bounding_box['xmin'] = $bbox['xmin'] < $this->computed_bounding_box['xmin'] ? $bbox['xmin'] : $this->computed_bounding_box['xmin'];
-            $this->computed_bounding_box['xmax'] = $bbox['xmax'] > $this->computed_bounding_box['xmax'] ? $bbox['xmax'] : $this->computed_bounding_box['xmax'];
-            $this->computed_bounding_box['ymin'] = $bbox['ymin'] < $this->computed_bounding_box['ymin'] ? $bbox['ymin'] : $this->computed_bounding_box['ymin'];
-            $this->computed_bounding_box['ymax'] = $bbox['ymax'] > $this->computed_bounding_box['ymax'] ? $bbox['ymax'] : $this->computed_bounding_box['ymax'];
+            if ($bbox['xmin'] < $this->computed_bounding_box['xmin']) {
+                $this->computed_bounding_box['xmin'] = $bbox['xmin'];
+            }
+            if ($bbox['xmax'] > $this->computed_bounding_box['xmax']) {
+                $this->computed_bounding_box['xmax'] = $bbox['xmax'];
+            }
+            if ($bbox['ymin'] < $this->computed_bounding_box['ymin']) {
+                $this->computed_bounding_box['ymin'] = $bbox['ymin'];
+            }
+            if ($bbox['ymax'] > $this->computed_bounding_box['ymax']) {
+                $this->computed_bounding_box['ymax'] = $bbox['ymax'];
+            }
             if ($this->isZ() && !$this->getOption(Shapefile::OPTION_SUPPRESS_Z)) {
-                $this->computed_bounding_box['zmin'] = $bbox['zmin'] < $this->computed_bounding_box['zmin'] ? $bbox['zmin'] : $this->computed_bounding_box['zmin'];
-                $this->computed_bounding_box['zmax'] = $bbox['zmax'] > $this->computed_bounding_box['zmax'] ? $bbox['zmax'] : $this->computed_bounding_box['zmax'];
+                if ($bbox['zmin'] < $this->computed_bounding_box['zmin']) {
+                    $this->computed_bounding_box['zmin'] = $bbox['zmin'];
+                }
+                if ($bbox['zmax'] > $this->computed_bounding_box['zmax']) {
+                    $this->computed_bounding_box['zmax'] = $bbox['zmax'];
+                }
             }
             if ($this->isM() && !$this->getOption(Shapefile::OPTION_SUPPRESS_M)) {
-                $this->computed_bounding_box['mmin'] = ($this->computed_bounding_box['mmin'] === false || $bbox['mmin'] < $this->computed_bounding_box['mmin']) ? $bbox['mmin'] : $this->computed_bounding_box['mmin'];
-                $this->computed_bounding_box['mmax'] = ($this->computed_bounding_box['mmax'] === false || $bbox['mmax'] > $this->computed_bounding_box['mmax']) ? $bbox['mmax'] : $this->computed_bounding_box['mmax'];
+                if ($this->computed_bounding_box['mmin'] === false || $bbox['mmin'] < $this->computed_bounding_box['mmin']) {
+                    $this->computed_bounding_box['mmin'] = $bbox['mmin'];
+                }
+                if ($this->computed_bounding_box['mmax'] === false || $bbox['mmax'] > $this->computed_bounding_box['mmax']) {
+                    $this->computed_bounding_box['mmax'] = $bbox['mmax'];
+                }
             }
         }
         // Mark Shapefile as initialized
         $this->flag_init = true;
     }
     
+    /**
+     * Gets the state of the Init flag.
+     * 
+     * @return  bool
+     */
+    protected function isInitialized()
+    {
+        return $this->flag_init;
+    }
+    
     
     
     /////////////////////////////// PRIVATE ///////////////////////////////
+    /**
+     * Checks formal compliance of a bounding box dimensions.
+     *
+     * @param   array   $bounding_box   Associative array with the xmin, xmax, ymin, ymax and optional zmin, zmax, mmin, mmax values.
+     */
+    private function sanitizeBoundingBox($bounding_box)
+    {
+        $bounding_box = array_intersect_key($bounding_box, array_flip(['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax', 'mmin', 'mmax']));
+        if ($this->getOption(Shapefile::OPTION_SUPPRESS_Z)) {
+            unset($bounding_box['zmin'], $bounding_box['zmax']);
+        }
+        if ($this->getOption(Shapefile::OPTION_SUPPRESS_M)) {
+            unset($bounding_box['mmin'], $bounding_box['mmax']);
+        }
+        
+        if (
+            !isset($bounding_box['xmin'], $bounding_box['xmax'], $bounding_box['ymin'], $bounding_box['ymax'])
+            || (
+                ($this->isZ() && !$this->getOption(Shapefile::OPTION_SUPPRESS_Z) && !isset($bounding_box['zmin'], $bounding_box['zmax']))
+                || (!$this->isZ() && (isset($bounding_box['zmin']) || isset($bounding_box['zmax'])))
+            )
+            || (
+                ($this->isM() && !$this->getOption(Shapefile::OPTION_SUPPRESS_M) && !isset($bounding_box['mmin'], $bounding_box['mmax']))
+                || (!$this->isM() && (isset($bounding_box['mmin']) || isset($bounding_box['mmax'])))
+            )
+        ) {
+            throw new ShapefileException(Shapefile::ERR_SHP_MISMATCHED_BBOX);
+        }
+        
+        return $bounding_box;
+    }
+    
+    
     /**
      * Returns a valid name for a DBF field.
      *

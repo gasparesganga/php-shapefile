@@ -90,7 +90,7 @@ class ShapefileWriter extends Shapefile
             Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES,
             Shapefile::OPTION_DELETE_EMPTY_FILES,
             Shapefile::OPTION_ENFORCE_GEOMETRY_DATA_STRUCTURE,
-            Shapefile::OPTION_OVERWRITE_EXISTING_FILES,
+            Shapefile::OPTION_EXISTING_FILES_MODE,
             Shapefile::OPTION_SUPPRESS_M,
             Shapefile::OPTION_SUPPRESS_Z,
         ], $options);
@@ -99,7 +99,62 @@ class ShapefileWriter extends Shapefile
         $this->openFiles($files, true);
         
         // Init Buffers
-        $this->buffers = array_fill_keys(self::$buffered_files, '');   
+        $this->buffers = array_fill_keys(array_intersect(self::$buffered_files, array_keys($this->getFiles())), '');  
+        
+        // Mode overwrite
+        if ($this->getOption(Shapefile::OPTION_EXISTING_FILES_MODE) === Shapefile::MODE_OVERWRITE) {
+            foreach (array_keys($this->getFiles()) as $file_type) {
+                if ($this->getFileSize($file_type) > 0) {
+                    $this->fileTruncate($file_type);
+                    $this->setFilePointer($file_type, 0);
+                }
+            }
+        }
+        
+        // Mode append
+        if ($this->getOption(Shapefile::OPTION_EXISTING_FILES_MODE) === Shapefile::MODE_APPEND && $this->getFileSize(Shapefile::FILE_SHP) > 0) {        
+            // Open Shapefile
+            $ShapefileReader = new ShapefileReader($this->getFiles(), [
+                Shapefile::OPTION_DBF_CONVERT_TO_UTF8   => false,
+                Shapefile::OPTION_DBF_FORCE_ALL_CAPS    => $this->getOption(Shapefile::OPTION_DBF_FORCE_ALL_CAPS),
+                Shapefile::OPTION_DBF_IGNORED_FIELDS    => [],
+                Shapefile::OPTION_IGNORE_SHAPEFILE_BBOX => false,
+            ]);
+            // Shape type
+            $this->setShapeType($ShapefileReader->getShapeType(Shapefile::FORMAT_INT));
+            // PRJ
+            $this->setPRJ($ShapefileReader->getPRJ());
+            // Charset
+            $this->setCharset($ShapefileReader->getCharset());
+            // Bounding Box
+            $this->overwriteComputedBoundingBox($ShapefileReader->getBoundingBox());
+            // Fields
+            foreach ($ShapefileReader->getFields() as $name => $field) {
+                $this->addField($name, $field['type'], $field['size'], $field['decimals']);
+            }
+            // Next DBT available block
+            if ($this->isFileOpen(Shapefile::FILE_DBT) && $this->getFileSize(Shapefile::FILE_DBT) > 0) {
+                $this->dbt_next_available_block = ($this->getFileSize(Shapefile::FILE_DBT) / Shapefile::DBT_BLOCK_SIZE);
+            }
+            // Number of records
+            $this->tot_records = $ShapefileReader->getTotRecords();
+            // Close Shapefile
+            $ShapefileReader = null;
+            // Flag init headers
+            $this->flag_init_headers = true;
+            // SHP current offset (in 16-bit words)
+            $this->shp_current_offset = $this->getFileSize(Shapefile::FILE_SHP) / 2;
+            // Remove DBF EOF marker
+            $dbf_size_without_eof = $this->getFileSize(Shapefile::FILE_DBF) - 1;
+            $this->setFilePointer(Shapefile::FILE_DBF, $dbf_size_without_eof);
+            if ($this->readData(Shapefile::FILE_DBF, 1) === $this->packChar(Shapefile::DBF_EOF_MARKER)) {
+                $this->fileTruncate(Shapefile::FILE_DBF, $dbf_size_without_eof);
+            }
+            // Reset pointers
+            foreach (array_keys($this->getFiles()) as $file_type) {
+                $this->resetFilePointer($file_type);
+            }
+        }
     }
     
     /**
@@ -114,22 +169,26 @@ class ShapefileWriter extends Shapefile
         $this->writeBuffers();
         // Write DBF EOF marker to buffer
         $this->writeData(Shapefile::FILE_DBF, $this->packChar(Shapefile::DBF_EOF_MARKER));
-        // Set file pointers to beginning of files
-        foreach (self::$buffered_files as $file_type) {
-            $this->setFilePointer($file_type, 0);
-        }
-        // Write SHP, SHX, DBF and DBT headers to buffers
-        $this->bufferData(Shapefile::FILE_SHP, $this->packSHPOrSHXHeader($this->getFileSize(Shapefile::FILE_SHP)));
-        $this->bufferData(Shapefile::FILE_SHX, $this->packSHPOrSHXHeader($this->getFileSize(Shapefile::FILE_SHX)));
-        $this->bufferData(Shapefile::FILE_DBF, $this->packDBFHeader());
-        if ($this->dbt_next_available_block > 0) {
-            $this->bufferData(Shapefile::FILE_DBT, $this->packDBTHeader());
-        }
-        // Write buffers containing the headers
-        $this->writeBuffers();
-        // Reset file pointers
-        foreach (self::$buffered_files as $file_type) {
-            $this->resetFilePointer($file_type);
+        
+        // Write headers only if Shapefile has been SUCCESSFULLY initialized (prevents execution when an Exception has been thrown during the first writeRecord() call)
+        if ($this->isInitialized()) {
+            // Set buffered file pointers to beginning of files
+            foreach (array_keys($this->buffers) as $file_type) {
+                $this->setFilePointer($file_type, 0);
+            }
+            // Write SHP, SHX, DBF and DBT headers to buffers
+            $this->bufferData(Shapefile::FILE_SHP, $this->packSHPOrSHXHeader($this->getFileSize(Shapefile::FILE_SHP)));
+            $this->bufferData(Shapefile::FILE_SHX, $this->packSHPOrSHXHeader($this->getFileSize(Shapefile::FILE_SHX)));
+            $this->bufferData(Shapefile::FILE_DBF, $this->packDBFHeader());
+            if ($this->dbt_next_available_block > 0) {
+                $this->bufferData(Shapefile::FILE_DBT, $this->packDBTHeader());
+            }
+            // Write buffers containing the headers
+            $this->writeBuffers();
+            // Reset buffered file pointers
+            foreach (array_keys($this->buffers) as $file_type) {
+                $this->resetFilePointer($file_type);
+            }
         }
         
         
@@ -198,7 +257,7 @@ class ShapefileWriter extends Shapefile
      */
     public function addCharField($name, $size = 254)
     {
-        return parent::addField($name, Shapefile::DBF_TYPE_CHAR, $size, 0);
+        return $this->addField($name, Shapefile::DBF_TYPE_CHAR, $size, 0);
     }
     
     /**
@@ -213,7 +272,7 @@ class ShapefileWriter extends Shapefile
      */
     public function addDateField($name)
     {
-        return parent::addField($name, Shapefile::DBF_TYPE_DATE, 8, 0);
+        return $this->addField($name, Shapefile::DBF_TYPE_DATE, 8, 0);
     }
     
     /**
@@ -228,7 +287,7 @@ class ShapefileWriter extends Shapefile
      */
     public function addLogicalField($name)
     {
-        return parent::addField($name, Shapefile::DBF_TYPE_LOGICAL, 1, 0);
+        return $this->addField($name, Shapefile::DBF_TYPE_LOGICAL, 1, 0);
     }
     
     /**
@@ -243,7 +302,7 @@ class ShapefileWriter extends Shapefile
      */
     public function addMemoField($name)
     {
-        return parent::addField($name, Shapefile::DBF_TYPE_MEMO, 10, 0);
+        return $this->addField($name, Shapefile::DBF_TYPE_MEMO, 10, 0);
     }
     
     /**
@@ -260,7 +319,7 @@ class ShapefileWriter extends Shapefile
      */
     public function addNumericField($name, $size = 10, $decimals = 0)
     {
-        return parent::addField($name, Shapefile::DBF_TYPE_NUMERIC, $size, $decimals);
+        return $this->addField($name, Shapefile::DBF_TYPE_NUMERIC, $size, $decimals);
     }
     
     /**
@@ -277,7 +336,7 @@ class ShapefileWriter extends Shapefile
      */
     public function addFloatField($name, $size = 20, $decimals = 10)
     {
-        return parent::addField($name, Shapefile::DBF_TYPE_FLOAT, $size, $decimals);
+        return $this->addField($name, Shapefile::DBF_TYPE_FLOAT, $size, $decimals);
     }
     
     
@@ -330,6 +389,32 @@ class ShapefileWriter extends Shapefile
     
     
     /////////////////////////////// PRIVATE ///////////////////////////////
+    /**
+     * Stores binary string packed data into a buffer.
+     *
+     * @param   string  $file_type      File type.
+     * @param   string  $data           String value to write.
+     */
+    private function bufferData($file_type, $data)
+    {
+        $this->buffers[$file_type] .= $data;
+    }
+    
+    /**
+     * Writes buffers to files.
+     */
+    private function writeBuffers()
+    {
+        foreach ($this->buffers as $file_type => $buffer) {
+            if ($buffer !== '') {
+                $this->writeData($file_type, $buffer);
+                $this->buffers[$file_type] = '';
+            }
+        }
+        $this->buffered_record_count = 0;
+    }
+    
+    
     /**
      * Packs an unsigned char into binary string.
      *
@@ -416,44 +501,6 @@ class ShapefileWriter extends Shapefile
     private function packNulPadding($lenght)
     {
         return pack('a*', str_repeat("\0", $lenght));
-    }
-    
-    /**
-     * Stores binary string packed data into a buffer.
-     *
-     * @param   string  $file_type      File type.
-     * @param   string  $data           String value to write.
-     */
-    private function bufferData($file_type, $data)
-    {
-        $this->buffers[$file_type] .= $data;
-    }
-    
-    /**
-     * Writes binary string packed data to a file.
-     *
-     * @param   string  $file_type      File type.
-     * @param   string  $data           Binary string packed data to write.
-     */
-    private function writeData($file_type, $data)
-    {
-        if ($this->fileWrite($file_type, $data) === false) {
-            throw new ShapefileException(Shapefile::ERR_FILE_WRITING);
-        }
-    }
-    
-    /**
-     * Writes buffers to files.
-     */
-    private function writeBuffers()
-    {
-        foreach (self::$buffered_files as $file_type) {
-            if ($this->buffers[$file_type] !== '') {
-                $this->writeData($file_type, $this->buffers[$file_type]);
-                $this->buffers[$file_type] = '';
-            }
-        }
-        $this->buffered_record_count = 0;
     }
     
     
@@ -1191,7 +1238,7 @@ class ShapefileWriter extends Shapefile
     {
         return array_sum($this->arrayColumn($this->getFields(), 'size')) + 1;
     }
-    
+        
     
     /**
      * Substitute for PHP 5.5 array_column() function.

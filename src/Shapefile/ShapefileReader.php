@@ -110,18 +110,17 @@ class ShapefileReader extends Shapefile implements \Iterator
         // DBF file size
         $this->dbf_file_size = $this->getFileSize(Shapefile::FILE_DBF);
         // DBT file size
-        $this->dbt_file_size = $this->isFileOpen(Shapefile::FILE_DBT) ? $this->getFileSize(Shapefile::FILE_DBT) : null;
+        $this->dbt_file_size = ($this->isFileOpen(Shapefile::FILE_DBT) && $this->getFileSize(Shapefile::FILE_DBT) > 0) ? $this->getFileSize(Shapefile::FILE_DBT) : null;
         
         // PRJ
-        if ($this->isFileOpen(Shapefile::FILE_PRJ)) {
+        if ($this->isFileOpen(Shapefile::FILE_PRJ) && $this->getFileSize(Shapefile::FILE_PRJ) > 0) {
             $this->setPRJ($this->readString(Shapefile::FILE_PRJ, $this->getFileSize(Shapefile::FILE_PRJ)));
         }
         
         // CPG
-        if ($this->isFileOpen(Shapefile::FILE_CPG)) {
+        if ($this->isFileOpen(Shapefile::FILE_CPG) && $this->getFileSize(Shapefile::FILE_CPG) > 0) {
             $this->setCharset($this->readString(Shapefile::FILE_CPG, $this->getFileSize(Shapefile::FILE_CPG)));
         }
-        
         // Read headers
         $this->readSHPHeader();
         $this->readDBFHeader();
@@ -204,6 +203,16 @@ class ShapefileReader extends Shapefile implements \Iterator
     public function getFields()
     {
         return parent::getFields();
+    }
+    
+   /**
+     * Gets all fields names.
+     * 
+     * @return  array
+     */
+    public function getFieldsNames()
+    {
+        return array_keys($this->getFields());
     }
     
    /**
@@ -297,28 +306,6 @@ class ShapefileReader extends Shapefile implements \Iterator
     
     /////////////////////////////// PRIVATE ///////////////////////////////
     /**
-     * Reads data from a file and unpacks it according to the given format.
-     *
-     * @param   string  $file_type          File type.
-     * @param   string  $format             Format code. See php pack() documentation.
-     * @param   integer $length             Number of bytes to read.
-     * @param   bool    $invert_endianness  Set this optional flag to true when reading floating point numbers on a big endian machine.
-     *
-     * @return  string
-     */
-    private function readData($file_type, $format, $length, $invert_endianness = false)
-    {
-        $data = $this->fileRead($file_type, $length);
-        if ($data === false) {
-            throw new ShapefileException(Shapefile::ERR_FILE_READING);
-        }
-        if ($invert_endianness) {
-            $data = strrev($data);
-        }
-        return current(unpack($format, $data));
-    }
-    
-    /**
      * Reads an unsigned char from a resource handle.
      *
      * @param   string  $file_type      File type.
@@ -327,7 +314,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      */
     private function readChar($file_type)
     {
-        return $this->readData($file_type, 'C', 1);
+        return current(unpack('C', $this->readData($file_type, 1)));
     }
     
     /**
@@ -339,7 +326,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      */
     private function readInt16L($file_type)
     {
-        return $this->readData($file_type, 'v', 2);
+        return current(unpack('v', $this->readData($file_type, 2)));
     }
     
     /**
@@ -351,7 +338,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      */
     private function readInt32B($file_type)
     {
-        return $this->readData($file_type, 'N', 4);
+        return current(unpack('N', $this->readData($file_type, 4)));
     }
     
     /**
@@ -363,7 +350,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      */
     private function readInt32L($file_type)
     {
-        return $this->readData($file_type, 'V', 4);
+        return current(unpack('V', $this->readData($file_type, 4)));
     }
     
     /**
@@ -375,7 +362,11 @@ class ShapefileReader extends Shapefile implements \Iterator
      */
     private function readDoubleL($file_type)
     {
-        return $this->readData($file_type, 'd', 8, $this->isBigEndianMachine());
+        $ret = $this->readData($file_type, 8);
+        if ($this->isBigEndianMachine()) {
+            $ret = strrev($ret);
+        }
+        return current(unpack('d', $ret));
     }
     
     /**
@@ -389,7 +380,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      */
     private function readString($file_type, $length, $flag_utf8_encode = false)
     {
-        $ret = $this->readData($file_type, 'A*', $length);
+        $ret = current(unpack('A*', $this->readData($file_type, $length)));
         if ($flag_utf8_encode && $this->getOption(Shapefile::OPTION_DBF_CONVERT_TO_UTF8)) {
             $ret = @iconv($this->getCharset(), 'UTF-8', $ret);
             if ($ret === false) {
