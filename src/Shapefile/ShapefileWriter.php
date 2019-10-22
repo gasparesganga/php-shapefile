@@ -968,7 +968,7 @@ class ShapefileWriter extends Shapefile
             $data = array_change_key_case($data, CASE_UPPER);
         }
         foreach ($this->getFields() as $name => $field) {
-            if (!isset($data[$name])) {
+            if (!array_key_exists($name, $data)) {
                 if ($this->getOption(Shapefile::OPTION_ENFORCE_GEOMETRY_DATA_STRUCTURE)) {
                     throw new ShapefileException(Shapefile::ERR_GEOM_MISSING_FIELD, $name);
                 }
