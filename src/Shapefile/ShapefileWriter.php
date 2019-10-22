@@ -170,27 +170,30 @@ class ShapefileWriter extends Shapefile
         // Write DBF EOF marker to buffer
         $this->writeData(Shapefile::FILE_DBF, $this->packChar(Shapefile::DBF_EOF_MARKER));
         
-        // Write headers only if Shapefile has been SUCCESSFULLY initialized (prevents execution when an Exception has been thrown during the first writeRecord() call)
-        if ($this->isInitialized()) {
-            // Set buffered file pointers to beginning of files
-            foreach (array_keys($this->buffers) as $file_type) {
-                $this->setFilePointer($file_type, 0);
-            }
-            // Write SHP, SHX, DBF and DBT headers to buffers
-            $this->bufferData(Shapefile::FILE_SHP, $this->packSHPOrSHXHeader($this->getFileSize(Shapefile::FILE_SHP)));
-            $this->bufferData(Shapefile::FILE_SHX, $this->packSHPOrSHXHeader($this->getFileSize(Shapefile::FILE_SHX)));
-            $this->bufferData(Shapefile::FILE_DBF, $this->packDBFHeader());
-            if ($this->dbt_next_available_block > 0) {
-                $this->bufferData(Shapefile::FILE_DBT, $this->packDBTHeader());
-            }
-            // Write buffers containing the headers
-            $this->writeBuffers();
-            // Reset buffered file pointers
-            foreach (array_keys($this->buffers) as $file_type) {
-                $this->resetFilePointer($file_type);
-            }
+        // Try setting Shapefile as NULL SHAPE if it wasn't initialized yet (no record written)
+        if (!$this->isInitialized()) {
+            try {
+                $this->setShapeType(Shapefile::SHAPE_TYPE_NULL);
+            } catch (ShapefileException $e) {}
         }
         
+        // Set buffered file pointers to beginning of files
+        foreach (array_keys($this->buffers) as $file_type) {
+            $this->setFilePointer($file_type, 0);
+        }
+        // Write SHP, SHX, DBF and DBT headers to buffers
+        $this->bufferData(Shapefile::FILE_SHP, $this->packSHPOrSHXHeader($this->getFileSize(Shapefile::FILE_SHP)));
+        $this->bufferData(Shapefile::FILE_SHX, $this->packSHPOrSHXHeader($this->getFileSize(Shapefile::FILE_SHX)));
+        $this->bufferData(Shapefile::FILE_DBF, $this->packDBFHeader());
+        if ($this->dbt_next_available_block > 0) {
+            $this->bufferData(Shapefile::FILE_DBT, $this->packDBTHeader());
+        }
+        // Write buffers containing the headers
+        $this->writeBuffers();
+        // Reset buffered file pointers
+        foreach (array_keys($this->buffers) as $file_type) {
+            $this->resetFilePointer($file_type);
+        }
         
         // Write PRJ file
         if ($this->isFileOpen(Shapefile::FILE_PRJ) && $this->getPRJ() !== null) {
