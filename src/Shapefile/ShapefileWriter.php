@@ -113,7 +113,7 @@ class ShapefileWriter extends Shapefile
         
         // Mode append
         if ($this->getOption(Shapefile::OPTION_EXISTING_FILES_MODE) === Shapefile::MODE_APPEND && $this->getFileSize(Shapefile::FILE_SHP) > 0) {        
-            // Open Shapefile
+            // Open Shapefile in reading mode
             $ShapefileReader = new ShapefileReader($this->getFiles(), [
                 Shapefile::OPTION_DBF_CONVERT_TO_UTF8   => false,
                 Shapefile::OPTION_DBF_FORCE_ALL_CAPS    => $this->getOption(Shapefile::OPTION_DBF_FORCE_ALL_CAPS),
@@ -138,8 +138,13 @@ class ShapefileWriter extends Shapefile
             }
             // Number of records
             $this->tot_records = $ShapefileReader->getTotRecords();
-            // Close Shapefile
+            // Close Shapefile in reading mode
             $ShapefileReader = null;
+            
+            // Mark Shapefile as initialized if there are any records
+            if ($this->tot_records > 0) {
+                $this->setFlagInitialized(true);
+            }
             // Flag init headers
             $this->flag_init_headers = true;
             // SHP current offset (in 16-bit words)

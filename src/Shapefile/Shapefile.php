@@ -446,9 +446,9 @@ abstract class Shapefile
     private $flag_big_endian_machine = null;
     
     /**
-     * @var bool    Flag representing whether the Shapefile has been initialized with any Geometry.
+     * @var bool    Flag representing whether the Shapefile has been initialized with any Geometry or not.
      */
-    private $flag_init = false;
+    private $flag_initialized = false;
     
     
     
@@ -930,6 +930,27 @@ abstract class Shapefile
     
     
     /**
+     * Gets the state of the initialized flag.
+     * 
+     * @return  bool
+     */
+    protected function isInitialized()
+    {
+        return $this->flag_initialized;
+    }
+    
+    /**
+     * Sets the state of the initialized flag.
+     * 
+     * @param   bool    $value
+     */
+    protected function setFlagInitialized($value)
+    {
+        $this->flag_initialized = $value;
+    }
+    
+    
+    /**
      * Adds a field to the shapefile definition.
      * Returns the effective field name after eventual sanitization.
      * 
@@ -950,7 +971,7 @@ abstract class Shapefile
     protected function addField($name, $type, $size, $decimals)
     {
         // Check init
-        if ($this->flag_init) {
+        if ($this->isInitialized()) {
             throw new ShapefileException(Shapefile::ERR_SHP_FILE_ALREADY_INITIALIZED);
         }
         // Check filed count
@@ -1149,17 +1170,7 @@ abstract class Shapefile
             }
         }
         // Mark Shapefile as initialized
-        $this->flag_init = true;
-    }
-    
-    /**
-     * Gets the state of the Init flag.
-     * 
-     * @return  bool
-     */
-    protected function isInitialized()
-    {
-        return $this->flag_init;
+        $this->setFlagInitialized(true);
     }
     
     
