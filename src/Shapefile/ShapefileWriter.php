@@ -175,7 +175,7 @@ class ShapefileWriter extends Shapefile
         // Write DBF EOF marker to buffer
         $this->writeData(Shapefile::FILE_DBF, $this->packChar(Shapefile::DBF_EOF_MARKER));
         
-        // Try setting Shapefile as NULL SHAPE if it wasn't initialized yet (no record written)
+        // Try setting Shapefile as NULL SHAPE if it hasn't been initialized yet (no records written)
         if (!$this->isInitialized()) {
             try {
                 $this->setShapeType(Shapefile::SHAPE_TYPE_NULL);
@@ -370,13 +370,18 @@ class ShapefileWriter extends Shapefile
             $this->flag_init_headers = true;
         }
         
-        // Pair with Geometry and increase records count
+        // Pair with Geometry
         $this->pairGeometry($Geometry);
-        ++$this->tot_records;
         
-        // Write data to buffers
-        $this->bufferSHPAndSHXData($Geometry);
-        $this->bufferDBFData($Geometry);
+        // Write data to temporary buffers to make sure no exceptions are raised within current record
+        $temp = $this->packSHPAndSHXData($Geometry) + $this->packDBFAndDBTData($Geometry);
+        // Write data to real buffers
+        foreach (array_keys($this->buffers) as $file_type) {
+            $this->bufferData($file_type, $temp[$file_type]);
+        }
+        $this->shp_current_offset       = $temp['shp_current_offset'];
+        $this->dbt_next_available_block = $temp['dbt_next_available_block'];
+        ++$this->tot_records;
         ++$this->buffered_record_count;
         
         // Eventually flush buffers
@@ -910,11 +915,13 @@ class ShapefileWriter extends Shapefile
     
     
     /*
-     * Stores binary string packed Geometry data into SHP and SHX buffers.
+     * Packs SHP and SHX data from a Geometry object into binary strings and returns an array with SHP, SHX and "shp_current_offset" members.
      *
-     * @param   Geometry    $Geometry   Geometry to write.
+     * @param   Geometry    $Geometry   Input Geometry.
+     *
+     * @return  array
      */
-    private function bufferSHPAndSHXData(Geometry\Geometry $Geometry)
+    private function packSHPAndSHXData(Geometry\Geometry $Geometry)
     {
         // Choose Geometry pack method
         if ($Geometry->isEmpty()) {
@@ -932,35 +939,37 @@ class ShapefileWriter extends Shapefile
             }
         }
         // Pack Geometry data
-        $shp_data           = $this->{$method}($array, $Geometry->getBoundingBox());
+        $shp_data = $this->{$method}($array, $Geometry->getBoundingBox());
         // Compute content lenght in 16-bit words
         $shp_content_length = strlen($shp_data) / 2;
-        // Write header and data to SHP buffer
-        $this->bufferData(Shapefile::FILE_SHP,
-              $this->packInt32B($this->tot_records)
-            . $this->packInt32B($shp_content_length)
-            . $shp_data
-        );
         
-        // Write data to SHX buffer
-        $this->bufferData(Shapefile::FILE_SHX, 
-              $this->packInt32B($this->shp_current_offset)
-            . $this->packInt32B($shp_content_length)
-        );
-        
-        // Compute current SHP offset (curent + record lenght + header lenght)
-        $this->shp_current_offset += $shp_content_length + 4;
+        return [
+            Shapefile::FILE_SHP     => $this->packInt32B($this->tot_records)
+                                     . $this->packInt32B($shp_content_length)
+                                     . $shp_data,
+            Shapefile::FILE_SHX     => $this->packInt32B($this->shp_current_offset)
+                                     . $this->packInt32B($shp_content_length),
+            'shp_current_offset'    => $this->shp_current_offset + $shp_content_length + 4,
+        ];
     }
     
     /*
-     * Stores binary string packed Geometry data into DBF buffer.
+     * Packs DBF and DBT data from a Geometry object into binary strings and returns an array with SHP, DBT and "dbt_next_available_block" members.
      *
-     * @param   Geometry    $Geometry   Geometry to write.
+     * @param   Geometry    $Geometry   Input Geometry.
+     *
+     * @return  array
      */
-    private function bufferDBFData(Geometry\Geometry $Geometry)
+    private function packDBFAndDBTData(Geometry\Geometry $Geometry)
     {
+        $ret = [
+            Shapefile::FILE_DBF         => '',
+            Shapefile::FILE_DBT         => '',
+            'dbt_next_available_block'  => $this->dbt_next_available_block,
+        ];
+        
         // Deleted flag
-        $buffer = $this->packChar($Geometry->isDeleted() ? Shapefile::DBF_DELETED_MARKER : Shapefile::DBF_BLANK);
+        $ret[Shapefile::FILE_DBF] = $this->packChar($Geometry->isDeleted() ? Shapefile::DBF_DELETED_MARKER : Shapefile::DBF_BLANK);
         
         // Data
         $data = $Geometry->getDataArray();
@@ -977,48 +986,52 @@ class ShapefileWriter extends Shapefile
             $value = $this->encodeFieldValue($field['type'], $field['size'], $field['decimals'], $data[$name]);
             // Memo (DBT)
             if ($field['type'] == Shapefile::DBF_TYPE_MEMO && $value !== null) {
-                $value = $this->bufferDBTData($value, $field['size']);
+                $dbt    = $this->packDBTData($value, $field['size']);
+                $value  = str_pad($ret['dbt_next_available_block'], $field['size'], chr(Shapefile::DBF_BLANK), STR_PAD_LEFT);
+                $ret[Shapefile::FILE_DBT]           .= $dbt['data'];
+                $ret['dbt_next_available_block']    += $dbt['blocks'];
             }
             // Null
             if ($value === null) {
                 $value = str_repeat(($this->getOption(Shapefile::OPTION_DBF_NULL_PADDING_CHAR) !== null ? $this->getOption(Shapefile::OPTION_DBF_NULL_PADDING_CHAR) : chr(Shapefile::DBF_BLANK)), $field['size']);
             }
-            // Add value to temp buffer
-            $buffer .= $this->packString($value);
+            // Add packed value to temp buffer
+            $ret[Shapefile::FILE_DBF] .= $this->packString($value);
         }
         
-        // Write data to DBF buffer
-        $this->bufferData(Shapefile::FILE_DBF, $buffer);
+        return $ret;
     }
     
     /*
-     * Writes data to DBT file and returns first block number used.
+     * Packs DBT data into a binary string and return an array with "blocks" and "data" members.
      *
-     * @param   string  $data       Data to write
-     * @param   integer $field_size Size of the DBF field.
+     * @param   string  $data           Data to write
+     * @param   integer $field_size     Size of the DBF field.
      *
-     * @return  string
+     * @return  array
      */
-    private function bufferDBTData($data, $field_size)
+    private function packDBTData($data, $field_size)
     {
+        $ret = [
+            'blocks'    => 0,
+            'data'      => '',
+        ];
+        
         // Ignore empty values
         if ($data === '') {
-            return str_repeat(chr(Shapefile::DBF_BLANK), $field_size);
-        }
-        
-        // Block number to return
-        $ret = str_pad($this->dbt_next_available_block, $field_size, chr(Shapefile::DBF_BLANK), STR_PAD_LEFT);
-        
-        // Corner case: there's not enough space at the end of the last block for 2 field terminators. Add a space and switch to the next block!
-        if (strlen($data) % Shapefile::DBT_BLOCK_SIZE == Shapefile::DBT_BLOCK_SIZE - 1) {
-            $data .= chr(Shapefile::DBF_BLANK);
-        }
-        // Add TWO field terminators
-        $data .= str_repeat(chr(Shapefile::DBT_FIELD_TERMINATOR), 2);
-        // Write data to DBT buffer
-        foreach (str_split($data, Shapefile::DBT_BLOCK_SIZE) as $block) {
-            $this->bufferData(Shapefile::FILE_DBT, $this->packString(str_pad($block, Shapefile::DBT_BLOCK_SIZE, "\0", STR_PAD_RIGHT)));
-            ++$this->dbt_next_available_block; 
+            $ret['data'] = str_repeat(chr(Shapefile::DBF_BLANK), $field_size);
+        } else {
+            // Corner case: there's not enough space at the end of the last block for 2 field terminators. Add a space and switch to the next block!
+            if (strlen($data) % Shapefile::DBT_BLOCK_SIZE == Shapefile::DBT_BLOCK_SIZE - 1) {
+                $data .= chr(Shapefile::DBF_BLANK);
+            }
+            // Add TWO field terminators
+            $data .= str_repeat(chr(Shapefile::DBT_FIELD_TERMINATOR), 2);
+            // Write data to DBT buffer
+            foreach (str_split($data, Shapefile::DBT_BLOCK_SIZE) as $block) {
+                $ret['blocks']  += 1;
+                $ret['data']    .= $this->packString(str_pad($block, Shapefile::DBT_BLOCK_SIZE, "\0", STR_PAD_RIGHT));
+            }
         }
         
         return $ret;
