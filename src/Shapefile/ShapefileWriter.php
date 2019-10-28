@@ -50,11 +50,6 @@ class ShapefileWriter extends Shapefile
     private $buffered_record_count = 0;
      
     /**
-     * @var integer Number of records.
-     */
-    private $tot_records = 0;
-     
-    /**
      * @var integer Current offset in SHP file and buffer (in 16-bit words).
      *              First 50 16-bit are reserved for file header.
      */
@@ -137,12 +132,12 @@ class ShapefileWriter extends Shapefile
                 $this->dbt_next_available_block = ($this->getFileSize(Shapefile::FILE_DBT) / Shapefile::DBT_BLOCK_SIZE);
             }
             // Number of records
-            $this->tot_records = $ShapefileReader->getTotRecords();
+            $this->setTotRecords($ShapefileReader->getTotRecords());
             // Close Shapefile in reading mode
             $ShapefileReader = null;
             
             // Mark Shapefile as initialized if there are any records
-            if ($this->tot_records > 0) {
+            if ($this->getTotRecords() > 0) {
                 $this->setFlagInitialized(true);
             }
             // Flag init headers
@@ -242,10 +237,6 @@ class ShapefileWriter extends Shapefile
         parent::setPRJ($prj);
     }
     
-    public function setCharset($charset)
-    {
-        parent::setCharset($charset);
-    }
     
     public function addField($name, $type, $size, $decimals)
     {
@@ -381,7 +372,7 @@ class ShapefileWriter extends Shapefile
         }
         $this->shp_current_offset       = $temp['shp_current_offset'];
         $this->dbt_next_available_block = $temp['dbt_next_available_block'];
-        ++$this->tot_records;
+        $this->setTotRecords($this->getTotRecords() + 1);
         ++$this->buffered_record_count;
         
         // Eventually flush buffers
@@ -944,7 +935,7 @@ class ShapefileWriter extends Shapefile
         $shp_content_length = strlen($shp_data) / 2;
         
         return [
-            Shapefile::FILE_SHP     => $this->packInt32B($this->tot_records)
+            Shapefile::FILE_SHP     => $this->packInt32B($this->getTotRecords() + 1)
                                      . $this->packInt32B($shp_content_length)
                                      . $shp_data,
             Shapefile::FILE_SHX     => $this->packInt32B($this->shp_current_offset)
@@ -1191,7 +1182,7 @@ class ShapefileWriter extends Shapefile
         $ret .= $this->packChar(intval(date('d')));
         
         // Number of records
-        $ret .= $this->packInt32L($this->tot_records);
+        $ret .= $this->packInt32L($this->getTotRecords());
 
         // Header size
         $ret .= $this->packInt16L($this->getDBFHeaderSize());

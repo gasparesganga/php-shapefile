@@ -439,6 +439,11 @@ abstract class Shapefile
      */
     private $options = [];
     
+    /**
+     * @var integer Total number of records.
+     */
+    private $tot_records;
+    
     
     /**
      * @var bool|null   Flag to store whether the machine is big endian or not.
@@ -449,6 +454,187 @@ abstract class Shapefile
      * @var bool    Flag representing whether the Shapefile has been initialized with any Geometry or not.
      */
     private $flag_initialized = false;
+    
+    
+    
+    /////////////////////////////// PUBLIC ///////////////////////////////
+    /**
+     * Checks if Shapefile is of type Z.
+     * 
+     * @return  bool
+     */
+    public function isZ()
+    {
+        $shape_type = $this->getShapeType(Shapefile::FORMAT_INT);
+        return $shape_type > 10 && $shape_type < 20;
+    }
+    
+    /**
+     * Checks if Shapefile is of type M.
+     * 
+     * @return  bool
+     */
+    public function isM()
+    {
+        return $this->getShapeType(Shapefile::FORMAT_INT) > 10;
+    }
+    
+    
+    /**
+     * Gets shape type either as integer or string.
+     * 
+     * @param   integer $format     Optional desired output format.
+     *                              It can be on of the following:
+     *                              - Shapefile::FORMAT_INT [default]
+     *                              - Shapefile::FORMAT_STR
+     * 
+     * @return  integer|string
+     */
+    public function getShapeType($format = Shapefile::FORMAT_INT)
+    {
+        if ($this->shape_type === null) {
+            throw new ShapefileException(Shapefile::ERR_SHP_TYPE_NOT_SET);
+        }
+        if ($format == Shapefile::FORMAT_STR) {
+            return Shapefile::$shape_types[$this->shape_type];
+        } else {
+            return $this->shape_type;
+        }
+    }
+    
+    
+    /**
+     * Gets Shapefile bounding box.
+     * 
+     * @return  array
+     */
+    public function getBoundingBox()
+    {
+        return $this->custom_bounding_box ?: $this->computed_bounding_box;
+    }
+    
+    
+    /**
+     * Gets PRJ well-known-text.
+     *
+     * @return  string
+     */
+    public function getPRJ()
+    {
+        return $this->prj;
+    }
+    
+    
+    /**
+     * Gets DBF charset.
+     *
+     * @return  string
+     */
+    public function getCharset()
+    {
+        return $this->charset ?: Shapefile::DBF_DEFAULT_CHARSET;
+    }
+    
+    /**
+     * Sets or resets DBF charset.
+     *
+     * @param   mixed   $charset    Name of the charset.
+     *                              Pass a falsy value (eg. false or "") to reset it to default.
+     */
+    public function setCharset($charset)
+    {
+        $this->charset = $charset ?: Shapefile::DBF_DEFAULT_CHARSET;
+    }
+    
+    
+    /**
+     * Gets all fields names.
+     * 
+     * @return  array
+     */
+    public function getFieldsNames()
+    {
+        return array_keys($this->fields);
+    }
+    
+    /**
+     * Gets all fields definitions.
+     * 
+     * @return  array
+     */
+    public function getFields()
+    {
+        return $this->fields;
+    }
+    
+    /**
+     * Gets a field type.
+     *
+     * @param   string  $name   Name of the field.
+     *
+     * @return  string
+     */
+    public function getFieldType($name)
+    {
+        return $this->getField($name)['type'];
+    }
+    
+    /**
+     * Gets a field size.
+     *
+     * @param   string  $name   Name of the field.
+     *
+     * @return  integer
+     */
+    public function getFieldSize($name)
+    {
+        return $this->getField($name)['size'];
+    }
+    
+    /**
+     * Gets a field decimals.
+     *
+     * @param   string  $name   Name of the field.
+     *
+     * @return  integer
+     */
+    public function getFieldDecimals($name)
+    {
+        return $this->getField($name)['decimals'];
+    }
+    
+    /**
+     * Gets a complete field definition.
+     * 
+     * The returned array contains the following elements:
+     *  [
+     *      "type"      => string
+     *      "size"      => integer
+     *      "decimals"  => integer
+     *  ]
+     *
+     * @param   string  $name   Name of the field.
+     *
+     * @return  array
+     */
+    public function getField($name)
+    {
+        if (!isset($this->fields[$name])) {
+            throw new ShapefileException(Shapefile::ERR_INPUT_FIELD_NOT_FOUND, $name);
+        }
+        return $this->fields[$name];
+    }
+    
+    
+    /**
+     * Gets total number of records in SHP and DBF files.
+     *
+     * @return  integer
+     */
+    public function getTotRecords()
+    {
+        return $this->tot_records;
+    }
     
     
     
@@ -755,62 +941,6 @@ abstract class Shapefile
         $this->options[$option] = $value;
     }
     
-    
-    /**
-     * Checks if Shapefile is of type Z.
-     * 
-     * @return  bool
-     */
-    protected function isZ()
-    {
-        $shape_type = $this->getShapeType(Shapefile::FORMAT_INT);
-        return $shape_type > 10 && $shape_type < 20;
-    }
-    
-    /**
-     * Checks if Shapefile is of type M.
-     * 
-     * @return  bool
-     */
-    protected function isM()
-    {
-        return $this->getShapeType(Shapefile::FORMAT_INT) > 10;
-    }
-    
-    
-    /**
-     * Gets Shapefile base type, regardless of Z and M dimensions.
-     * 
-     * @return  integer
-     */
-    protected function getBasetype()
-    {
-        return $this->getShapeType(Shapefile::FORMAT_INT) % 10;
-    }
-    
-    
-    /**
-     * Gets shape type either as integer or string.
-     * 
-     * @param   integer $format     Optional desired output format.
-     *                              It can be on of the following:
-     *                              - Shapefile::FORMAT_INT [default]
-     *                              - Shapefile::FORMAT_STR
-     * 
-     * @return  integer|string
-     */
-    protected function getShapeType($format = Shapefile::FORMAT_INT)
-    {
-        if ($this->shape_type === null) {
-            throw new ShapefileException(Shapefile::ERR_SHP_TYPE_NOT_SET);
-        }
-        if ($format == Shapefile::FORMAT_STR) {
-            return Shapefile::$shape_types[$this->shape_type];
-        } else {
-            return $this->shape_type;
-        }
-    }
-    
     /**
      * Sets shape type.
      * It can be called just once for an instance of the class.
@@ -841,15 +971,14 @@ abstract class Shapefile
         $this->shape_type = $type;
     }
     
-    
     /**
-     * Gets Shapefile bounding box.
+     * Gets Shapefile base type, regardless of Z and M dimensions.
      * 
-     * @return  array
+     * @return  integer
      */
-    protected function getBoundingBox()
+    protected function getBasetype()
     {
-        return $this->custom_bounding_box ?: $this->computed_bounding_box;
+        return $this->getShapeType(Shapefile::FORMAT_INT) % 10;
     }
     
     
@@ -886,16 +1015,6 @@ abstract class Shapefile
     
     
     /**
-     * Gets PRJ well-known-text.
-     *
-     * @return  string
-     */
-    protected function getPRJ()
-    {
-        return $this->prj;
-    }
-    
-    /**
      * Sets PRJ well-known-text.
      *
      * @param   string  $prj    PRJ well-known-text.
@@ -908,26 +1027,14 @@ abstract class Shapefile
     
     
     /**
-     * Gets DBF charset.
+     * Sets current total number of records.
      *
-     * @return  string
+     * @param   integer     tot_records     Total number of records currently in the files.
      */
-    protected function getCharset()
+    protected function setTotRecords($tot_records)
     {
-        return $this->charset ?: Shapefile::DBF_DEFAULT_CHARSET;
+        $this->tot_records = $tot_records;
     }
-    
-    /**
-     * Sets or resets DBF charset.
-     *
-     * @param   mixed   $charset    Name of the charset.
-     *                              Pass a falsy value (eg. false or "") to reset it to default.
-     */
-    protected function setCharset($charset)
-    {
-        $this->charset = $charset ?: Shapefile::DBF_DEFAULT_CHARSET;
-    }
-    
     
     /**
      * Gets the state of the initialized flag.
@@ -1027,38 +1134,6 @@ abstract class Shapefile
         ];
         
         return $name;
-    }
-    
-    /**
-     * Gets a complete field definition.
-     * 
-     * The returned array contains the following elements:
-     *  [
-     *      "type"      => string
-     *      "size"      => integer
-     *      "decimals"  => integer
-     *  ]
-     *
-     * @param   string  $name   Name of the field.
-     *
-     * @return  array
-     */
-    protected function getField($name)
-    {
-        if (!isset($this->fields[$name])) {
-            throw new ShapefileException(Shapefile::ERR_INPUT_FIELD_NOT_FOUND, $name);
-        }
-        return $this->fields[$name];
-    }
-    
-    /**
-     * Gets all fields definitions.
-     * 
-     * @return  array
-     */
-    protected function getFields()
-    {
-        return $this->fields;
     }
     
     

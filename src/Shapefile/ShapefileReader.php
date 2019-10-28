@@ -68,11 +68,6 @@ class ShapefileReader extends Shapefile implements \Iterator
      */
     private $current_record;
     
-    /**
-     * @var integer Total number of records in SHP and DBF files.
-     */
-    private $tot_records;
-    
     
     
     /////////////////////////////// PUBLIC ///////////////////////////////
@@ -105,7 +100,7 @@ class ShapefileReader extends Shapefile implements \Iterator
         $this->openFiles($files, false);
         
         // Gets number of records from SHX file size.
-        $this->tot_records = ($this->getFileSize(Shapefile::FILE_SHX) - Shapefile::SHX_HEADER_SIZE) / Shapefile::SHX_RECORD_SIZE;
+        $this->setTotRecords(($this->getFileSize(Shapefile::FILE_SHX) - Shapefile::SHX_HEADER_SIZE) / Shapefile::SHX_RECORD_SIZE);
         
         // DBF file size
         $this->dbf_file_size = $this->getFileSize(Shapefile::FILE_DBF);
@@ -169,98 +164,6 @@ class ShapefileReader extends Shapefile implements \Iterator
         return ($this->current_record !== Shapefile::EOF);
     }
     
-    
-    public function getShapeType($format = Shapefile::FORMAT_INT)
-    {
-        return parent::getShapeType($format);
-    }
-    
-    public function getBoundingBox()
-    {
-        return parent::getBoundingBox();
-    }
-    
-    public function getPRJ()
-    {
-        return parent::getPRJ();
-    }
-    
-    public function getCharset()
-    {
-        return parent::getCharset();
-    }
-    
-    public function setCharset($charset)
-    {
-        parent::setCharset($charset);
-    }
-    
-    public function getField($name)
-    {
-        return parent::getField($name);
-    }
-    
-    public function getFields()
-    {
-        return parent::getFields();
-    }
-    
-   /**
-     * Gets all fields names.
-     * 
-     * @return  array
-     */
-    public function getFieldsNames()
-    {
-        return array_keys($this->getFields());
-    }
-    
-   /**
-     * Gets a field type.
-     *
-     * @param   string  $name   Name of the field.
-     *
-     * @return  string
-     */
-    public function getFieldType($name)
-    {
-        return $this->getField($name)['type'];
-    }
-    
-    /**
-     * Gets a field size.
-     *
-     * @param   string  $name   Name of the field.
-     *
-     * @return  integer
-     */
-    public function getFieldSize($name)
-    {
-        return $this->getField($name)['size'];
-    }
-    
-    /**
-     * Gets a field decimals.
-     *
-     * @param   string  $name   Name of the field.
-     *
-     * @return  integer
-     */
-    public function getFieldDecimals($name)
-    {
-        return $this->getField($name)['decimals'];
-    }
-    
-    
-    /**
-     * Gets total number of records in SHP and DBF files.
-     *
-     * @return  integer
-     */
-    public function getTotRecords()
-    {
-        return $this->tot_records;
-    }
     
     /**
      * Gets current record index.
@@ -400,7 +303,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      */
     private function checkRecordIndex($index)
     {
-        return ($index > 0 && $index <= $this->tot_records);
+        return ($index > 0 && $index <= $this->getTotRecords());
     }
     
     
@@ -435,7 +338,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     {
         // Number of records
         $this->setFilePointer(Shapefile::FILE_DBF, 4);
-        if ($this->readInt32L(Shapefile::FILE_DBF) !== $this->tot_records) {
+        if ($this->readInt32L(Shapefile::FILE_DBF) !== $this->getTotRecords()) {
             throw new ShapefileException(Shapefile::ERR_DBF_MISMATCHED_FILE);
         }
         
