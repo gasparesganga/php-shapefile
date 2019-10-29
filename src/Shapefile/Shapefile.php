@@ -619,6 +619,7 @@ abstract class Shapefile
      */
     public function getField($name)
     {
+        $name = $this->normalizeDBFFieldNameCase($name);
         if (!isset($this->fields[$name])) {
             throw new ShapefileException(Shapefile::ERR_INPUT_FIELD_NOT_FOUND, $name);
         }
