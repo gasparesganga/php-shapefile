@@ -5,15 +5,51 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## v3.1.0 - 2019-10-30
+### Added
+- Writing buffer in `ShapefileWriter`. It allows up to a 50% reduction in writing time
+- `ShapefileWriter::flushBuffer()` method
+- `Shapefile::OPTION_BUFFERED_RECORDS` constructor option for `ShapefileWriter` class
+- Capability to append records to existing Shapefiles
+- `Shapefile::OPTION_EXISTING_FILES_MODE` constructor option for `ShapefileWriter` class
+- `Shapefile::MODE_PRESERVE`, `Shapefile::MODE_APPEND`, `Shapefile::MODE_OVERWRITE` constants
+- `isZ()`, `isM()` and `getFieldsNames()` methods for both `ShapefileReader` and `ShapefileWriter` classes
+- `ShapefileWriter` expose `getShapeType()`, `getBoundingBox()`, `getPRJ()`, `getCharset()`, `setCharset()`, `getFieldsNames()`, `getField()`, `getFieldType()`, `getFieldSize()`, `getFieldDecimals()`, `getFields()` and `getTotRecords()` public methods like `ShapefileReader`
+- Sanitize and accept conflicting and duplicated field names
+- Other minor code and performance improvements across the library
+
+### Changed
+- Improved `GeometryCollection::getBoundingBox()` method for better performance
+- Improved `ShapefileWriter::encodeFieldValue()` method for better performance, relying on PHP `number_format()` for non-textual numeric input
+- Field name sanitization is always carried out in all `ShapefileWriter` field-adding methods
+- `Shapefile::ERR_DBF_FIELD_NAME_NOT_VALID` error type is now defined as `"Too many field names conflicting"`
+- Default `c+b` file access mode for `ShapefileWriter` class
+
+### Fixed
+- Convert field names to uppercase for `Geometry` data when `Shapefile::OPTION_DBF_FORCE_ALL_CAPS` is enabled
+- Decoupling field names sanitization and `Shapefile::OPTION_DBF_FORCE_ALL_CAPS` option
+- `Shapefile::ERR_GEOM_MISSING_FIELD` exception was erroneously raised when a field had an explicit `null` value and `Shapefile::OPTION_ENFORCE_GEOMETRY_DATA_STRUCTURE` was enabled
+- Suppress PHP warnings in `fread()` and `fwrite()` calls: a `ShapefileException` is thrown anyways
+- Bug causing a corrupted DBF file when a `Shapefile::ERR_GEOM_MISSING_FIELD` is raised
+- Bug causing wrong record number to be written in SHP record headers (count starts from `1`, not from `0`)
+- Corner case bug affecting `ShapefileWriter` destructor when no record has been written yet
+
+### Removed
+- `$flag_sanitize_name` parameter from all field-adding methods
+- `Shapefile::OPTION_OVERWRITE_EXISTING_FILES` constructor option for `ShapefileWriter` class
+- `Shapefile::ERR_DBF_FIELD_NAME_NOT_UNIQUE` error type
+
+
+
 ## v3.0.2 - 2019-09-23
 ### Fixed
-- A *Declaration of X must be compatible with Y* PHP7 Warning thrown for `Polygon` and `MultiPolygon` `addGeometry` protected methods.
+- A *Declaration of X must be compatible with Y* PHP7 Warning thrown for `Polygon` and `MultiPolygon` `addGeometry` protected methods
 
 
 
 ## v3.0.1 - 2019-08-31
 ### Fixed
-- A typo in a variable name introduced with a late *code clean-up before final release* that was causing a PHP Notice when reading Shapefiles with *Memo* fields.
+- A typo in a variable name introduced with a late *code clean-up before final release* that was causing a PHP Notice when reading Shapefiles with *Memo* fields
 - Year in the release date of v3 in CHANGELOG file.
 
 
