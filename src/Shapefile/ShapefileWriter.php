@@ -196,13 +196,17 @@ class ShapefileWriter extends Shapefile
         }
         
         // Write PRJ file
-        if ($this->isFileOpen(Shapefile::FILE_PRJ) && $this->getPRJ() !== null) {
+        if ($this->isFileOpen(Shapefile::FILE_PRJ)) {
+            $this->fileTruncate(Shapefile::FILE_PRJ);
             $this->writeData(Shapefile::FILE_PRJ, $this->packString($this->getPRJ()));
         }
         
         // Write CPG file
-        if ($this->isFileOpen(Shapefile::FILE_CPG) && ($this->getCharset() !== Shapefile::DBF_DEFAULT_CHARSET || $this->getOption(Shapefile::OPTION_CPG_ENABLE_FOR_DEFAULT_CHARSET))) {
-            $this->writeData(Shapefile::FILE_CPG, $this->packString($this->getCharset()));
+        if ($this->isFileOpen(Shapefile::FILE_CPG)) {
+            $this->fileTruncate(Shapefile::FILE_CPG);
+            if ($this->getCharset() !== Shapefile::DBF_DEFAULT_CHARSET || $this->getOption(Shapefile::OPTION_CPG_ENABLE_FOR_DEFAULT_CHARSET)) {
+                $this->writeData(Shapefile::FILE_CPG, $this->packString($this->getCharset()));
+            }
         }
         
         // Close files and delete empty ones
