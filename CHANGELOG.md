@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## v3.1.1 - 2019-11-10
+### Fixed
+- Truncate *PRJ* and *CPG* files before writing them to prevent content to be appended when `Shapefile::OPTION_EXISTING_FILES_MODE` is set to `Shapefile::MODE_APPEND`
+- Increased maximum number of fields in *DBF* files to 255
+
+
+
 ## v3.1.0 - 2019-10-30
 ### Added
 - Writing buffer in `ShapefileWriter`. It allows up to a 50% reduction in writing time
@@ -30,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Decoupling field names sanitization and `Shapefile::OPTION_DBF_FORCE_ALL_CAPS` option
 - `Shapefile::ERR_GEOM_MISSING_FIELD` exception was erroneously raised when a field had an explicit `null` value and `Shapefile::OPTION_ENFORCE_GEOMETRY_DATA_STRUCTURE` was enabled
 - Suppress PHP warnings in `fread()` and `fwrite()` calls: a `ShapefileException` is thrown anyways
-- Bug causing a corrupted DBF file when a `Shapefile::ERR_GEOM_MISSING_FIELD` is raised
+- Bug causing a corrupted *DBF* file when a `Shapefile::ERR_GEOM_MISSING_FIELD` is raised
 - Bug causing wrong record number to be written in SHP record headers (count starts from `1`, not from `0`)
 - Corner case bug affecting `ShapefileWriter` destructor when no record has been written yet
 
