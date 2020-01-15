@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## v3.1.2 - 2020-01-15
+### Fixed
+- Do not apply `Shapefile::OPTION_FORCE_MULTIPART_GEOMETRIES` to Point Shapefiles
+
+
+
 ## v3.1.1 - 2019-11-10
 ### Fixed
 - Truncate *PRJ* and *CPG* files before writing them to prevent content to be appended when `Shapefile::OPTION_EXISTING_FILES_MODE` is set to `Shapefile::MODE_APPEND`
