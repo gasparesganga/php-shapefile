@@ -14,9 +14,9 @@ namespace Shapefile;
 /**
  * Abstract base class for ShapefileReader and ShapefileWriter.
  * It provides some common public methods to both of them and exposes package-wide constants.
-  *
-  * Efforts have been made all throughout the library to keep it compatible with an audience
-  * as broader as possible and some "stylistic tradeoffs" here and there were necessary to support PHP 5.4.
+ *
+ * Efforts have been made all throughout the library to keep it compatible with an audience
+ * as broader as possible and some "stylistic tradeoffs" here and there were necessary to support PHP 5.4.
  */
 abstract class Shapefile
 {
@@ -119,7 +119,7 @@ abstract class Shapefile
     const OPTION_EXISTING_FILES_MODE_DEFAULT = self::MODE_PRESERVE;
     
     /**
-     * Reads all Geometries as Multi.
+     * Reads all Polyline and Polygon Geometries as Multi.
      * ShapefileReader
      * @var bool
      */

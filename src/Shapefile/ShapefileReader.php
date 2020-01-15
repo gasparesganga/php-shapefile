@@ -590,7 +590,7 @@ class ShapefileReader extends Shapefile implements \Iterator
         ];
         $shape_basetype = $this->getBasetype();
         $geometry_class = $geometry_classes[$shape_basetype];
-        if ($this->getOption(Shapefile::OPTION_FORCE_MULTIPART_GEOMETRIES) && $shape_basetype != Shapefile::SHAPE_TYPE_MULTIPOINT) {
+        if ($this->getOption(Shapefile::OPTION_FORCE_MULTIPART_GEOMETRIES) && ($shape_basetype == Shapefile::SHAPE_TYPE_POLYLINE || $shape_basetype == Shapefile::SHAPE_TYPE_POLYGON)) {
             $geometry_class = 'Multi' . $geometry_class;
         }
         $geometry_class = 'Shapefile\Geometry\\' . $geometry_class;
@@ -630,23 +630,14 @@ class ShapefileReader extends Shapefile implements \Iterator
     
     /**
      * Helper method to create the actual Point Geometry using data read from SHP file.
-     * If OPTION_FORCE_MULTIPART_GEOMETRIES is set, a MultiPoint is returned instead.
      *
      * @param   array   $data   Array with "x", "y" and optional "z" and "m" values.
      *
-     * @return  Point|MultiPoint
+     * @return  Point
      */
     private function createPoint($data)
     {
-        if ($this->getOption(Shapefile::OPTION_FORCE_MULTIPART_GEOMETRIES)) {
-            $data = [
-                'numpoints' => 1,
-                'points'    => [$data],
-            ];
-            $Geometry = new MultiPoint();
-        } else {
-            $Geometry = new Point();
-        }
+        $Geometry = new Point();
         $Geometry->initFromArray($data);
         return $Geometry;
     }
