@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## v3.1.3 - 2020-02-02
+### Fixed
+- Changed `GEOJSON_BASETYPE` constants for `Shapefile\Geometry\Linestring` and `Shapefile\Geometry\MultiLinestring` respectively to `'LineString'` and `'MultiLineString'`
+
+
+
 ## v3.1.2 - 2020-01-15
 ### Fixed
 - Do not apply `Shapefile::OPTION_FORCE_MULTIPART_GEOMETRIES` to Point Shapefiles
