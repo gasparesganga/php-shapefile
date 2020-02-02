@@ -53,7 +53,7 @@ class MultiLinestring extends GeometryCollection
      * WKT and GeoJSON basetypes, collection class type
      */
     const WKT_BASETYPE      = 'MULTILINESTRING';
-    const GEOJSON_BASETYPE  = 'MultiLinestring';
+    const GEOJSON_BASETYPE  = 'MultiLineString';
     const COLLECTION_CLASS  = 'Linestring';
     
     

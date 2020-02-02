@@ -46,7 +46,7 @@ class Linestring extends MultiPoint
      * WKT and GeoJSON basetypes, collection class type
      */
     const WKT_BASETYPE      = 'LINESTRING';
-    const GEOJSON_BASETYPE  = 'Linestring';
+    const GEOJSON_BASETYPE  = 'LineString';
     const COLLECTION_CLASS  = 'Point';
     
     
