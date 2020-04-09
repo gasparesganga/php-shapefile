@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## v3.2.0 - 2020-04-09
+### Added
+- `Shapefile::OPTION_DBF_ALLOW_FIELD_SIZE_255` constructor option for both `ShapefileReader` and `ShapefileWriter` classes
+
+
+
 ## v3.1.3 - 2020-02-02
 ### Fixed
 - Changed `GEOJSON_BASETYPE` constants for `Shapefile\Geometry\Linestring` and `Shapefile\Geometry\MultiLinestring` respectively to `'LineString'` and `'MultiLineString'`

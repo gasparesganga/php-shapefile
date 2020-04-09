@@ -4,7 +4,7 @@
  * 
  * @package Shapefile
  * @author  Gaspare Sganga
- * @version 3.1.3
+ * @version 3.2.0
  * @license MIT
  * @link    https://gasparesganga.com/labs/php-shapefile/
  */
