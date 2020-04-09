@@ -81,6 +81,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     {
         // Options
         $this->initOptions([
+            Shapefile::OPTION_DBF_ALLOW_FIELD_SIZE_255,
             Shapefile::OPTION_DBF_CONVERT_TO_UTF8,
             Shapefile::OPTION_DBF_FORCE_ALL_CAPS,
             Shapefile::OPTION_DBF_IGNORED_FIELDS,

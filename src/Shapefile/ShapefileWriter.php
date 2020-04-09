@@ -80,6 +80,7 @@ class ShapefileWriter extends Shapefile
         $this->initOptions([
             Shapefile::OPTION_BUFFERED_RECORDS,
             Shapefile::OPTION_CPG_ENABLE_FOR_DEFAULT_CHARSET,
+            Shapefile::OPTION_DBF_ALLOW_FIELD_SIZE_255,
             Shapefile::OPTION_DBF_FORCE_ALL_CAPS,
             Shapefile::OPTION_DBF_NULL_PADDING_CHAR,
             Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES,

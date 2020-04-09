@@ -38,6 +38,14 @@ abstract class Shapefile
     const OPTION_CPG_ENABLE_FOR_DEFAULT_CHARSET_DEFAULT = false;
     
     /**
+     * Allows a maximum field size of 255 bytes instead of 254 bytes in DBF files.
+     * ShapefileReader and ShapefileWriter
+     * @var bool
+     */
+    const OPTION_DBF_ALLOW_FIELD_SIZE_255 = 'OPTION_DBF_ALLOW_FIELD_SIZE_255';
+    const OPTION_DBF_ALLOW_FIELD_SIZE_255_DEFAULT = false;
+    
+    /**
      * Converts from input charset to UTF-8 all strings read from DBF files.
      * ShapefileReader
      * @var bool
@@ -889,6 +897,7 @@ abstract class Shapefile
     {
         // Make sure compulsory options used in this abstract class are defined
         $options = array_unique(array_merge($options, [
+            Shapefile::OPTION_DBF_ALLOW_FIELD_SIZE_255,
             Shapefile::OPTION_DBF_FORCE_ALL_CAPS,
             Shapefile::OPTION_SUPPRESS_M,
             Shapefile::OPTION_SUPPRESS_Z,
@@ -1103,15 +1112,16 @@ abstract class Shapefile
         }
         
         // Check size
-        $size = intval($size);
+        $size       = intval($size);
+        $max_size   = $this->getOption(Shapefile::OPTION_DBF_ALLOW_FIELD_SIZE_255) ? 255 : 254;
         if (
                 ($size < 1)
-            ||  ($type == Shapefile::DBF_TYPE_CHAR && $size > 254)
+            ||  ($type == Shapefile::DBF_TYPE_CHAR && $size > $max_size)
             ||  ($type == Shapefile::DBF_TYPE_DATE && $size !== 8)
             ||  ($type == Shapefile::DBF_TYPE_LOGICAL && $size !== 1)
             ||  ($type == Shapefile::DBF_TYPE_MEMO && $size !== 10)
-            ||  ($type == Shapefile::DBF_TYPE_NUMERIC && $size > 254)
-            ||  ($type == Shapefile::DBF_TYPE_FLOAT && $size > 254)
+            ||  ($type == Shapefile::DBF_TYPE_NUMERIC && $size > $max_size)
+            ||  ($type == Shapefile::DBF_TYPE_FLOAT && $size > $max_size)
         ) {
             throw new ShapefileException(Shapefile::ERR_DBF_FIELD_SIZE_NOT_VALID, $size);
         }
