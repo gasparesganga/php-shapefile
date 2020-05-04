@@ -62,6 +62,16 @@ class Linestring extends MultiPoint
         return $this->getNumPoints() >= 4 && $this->getPoint(0) == $this->getPoint($this->getNumPoints() - 1);
     }
     
+    /**
+     * Force the linestring to be a closed ring.
+     */
+    public function forceClosedRing()
+    {
+        if (!$this->isClosedRing()) {
+            $this->addPoint($this->getPoint(0));
+        }
+    }
+    
     
     public function getSHPBasetype()
     {

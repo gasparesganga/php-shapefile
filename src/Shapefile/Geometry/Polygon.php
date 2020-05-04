@@ -60,19 +60,19 @@ class Polygon extends MultiLinestring
     /**
      * @var bool    Flag representing whether a closed rings check must be performed.
      */
-    private $flag_enforce_closed_rings = false;
+    private $flag_closed_rings = false;
     
     
     /////////////////////////////// PUBLIC ///////////////////////////////
     /**
      * Constructor.
      * 
-     * @param   Linestring[]    $linestrings                Optional array of linestrings to initialize the polygon.
-     * @param   bool            $flag_enforce_closed_rings  Optional flag to enforce closed rings check.
+     * @param   Linestring[]    $linestrings        Optional array of linestrings to initialize the polygon.
+     * @param   integer         $flag_closed_rings  Optional flag to check or force closed rings.
      */
-    public function __construct(array $linestrings = null, $flag_enforce_closed_rings = true)
+    public function __construct(array $linestrings = null, $flag_closed_rings = Shapefile::ACTION_CHECK)
     {
-        $this->flag_enforce_closed_rings = $flag_enforce_closed_rings;
+        $this->flag_closed_rings = $flag_closed_rings;
         parent::__construct($linestrings);
     }
     
@@ -189,7 +189,9 @@ class Polygon extends MultiLinestring
     protected function addGeometry(Geometry $Linestring)
     {
         parent::addGeometry($Linestring);
-        if ($this->flag_enforce_closed_rings && !$Linestring->isClosedRing()) {
+        if ($this->flag_closed_rings == Shapefile::ACTION_FORCE) {
+            $Linestring->forceClosedRing();
+        } else if ($this->flag_closed_rings == Shapefile::ACTION_CHECK && !$Linestring->isClosedRing()) {
             throw new ShapefileException(Shapefile::ERR_GEOM_POLYGON_OPEN_RING);
         }
     }

@@ -193,6 +193,12 @@ abstract class Shapefile
     const MODE_APPEND       = 2;
     
     
+    /** Actions */
+    const ACTION_IGNORE     = 0;
+    const ACTION_CHECK      = 1;
+    const ACTION_FORCE      = 2;
+    
+    
     /** Shape types */
     const SHAPE_TYPE_NULL           = 0;
     const SHAPE_TYPE_POINT          = 1;
