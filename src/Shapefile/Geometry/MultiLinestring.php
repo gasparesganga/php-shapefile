@@ -1,7 +1,8 @@
 <?php
+
 /**
  * PHP Shapefile - PHP library to read and write ESRI Shapefiles, compatible with WKT and GeoJSON
- * 
+ *
  * @package Shapefile
  * @author  Gaspare Sganga
  * @version 3.2.0
@@ -33,7 +34,7 @@ use Shapefile\ShapefileException;
  *          ]
  *      ]
  *  ]
- *  
+ *
  *  - WKT:
  *      MULTILINESTRING [Z][M] ((x y z m, x y z m, x y z m), (x y z m, x y z m))
  *
@@ -175,7 +176,7 @@ class MultiLinestring extends GeometryCollection
     /**
      * Gets a linestring at specified index from the collection.
      *
-     * @param   integer $index  The index of the linestring.
+     * @param   int     $index  The index of the linestring.
      *
      * @return  Linestring
      */
@@ -186,7 +187,7 @@ class MultiLinestring extends GeometryCollection
     
     /**
      * Gets all the linestrings in the collection.
-     * 
+     *
      * @return  Linestring[]
      */
     public function getLinestrings()
@@ -196,8 +197,8 @@ class MultiLinestring extends GeometryCollection
     
     /**
      * Gets the number of linestrings in the collection.
-     * 
-     * @return  integer
+     *
+     * @return  int
      */
     public function getNumLinestrings()
     {
@@ -226,5 +227,4 @@ class MultiLinestring extends GeometryCollection
     {
         return __NAMESPACE__ . '\\' . static::COLLECTION_CLASS;
     }
-    
 }

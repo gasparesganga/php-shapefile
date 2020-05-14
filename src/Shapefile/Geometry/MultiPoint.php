@@ -1,7 +1,8 @@
 <?php
+
 /**
  * PHP Shapefile - PHP library to read and write ESRI Shapefiles, compatible with WKT and GeoJSON
- * 
+ *
  * @package Shapefile
  * @author  Gaspare Sganga
  * @version 3.2.0
@@ -28,7 +29,7 @@ use Shapefile\ShapefileException;
  *          ]
  *      ]
  *  ]
- *  
+ *
  *  - WKT:
  *      MULTIPOINT [Z][M] (x y z m, x y z m)
  *      N.B.: Points coordinates may be enclosed in additional brackets: MULTIPOINT ((x y z m), (x y z m))
@@ -85,7 +86,7 @@ class MultiPoint extends GeometryCollection
         $this->checkInit();
         $geojson = $this->geojsonSanitize($geojson);
         if ($geojson !== null) {
-            $force_m = $this->geojsonIsM($geojson['type']);  
+            $force_m = $this->geojsonIsM($geojson['type']);
             foreach ($geojson['coordinates'] as $geojson_coordinates) {
                 $coordinates = $this->geojsonParseCoordinates($geojson_coordinates, $force_m);
                 $Point = new Point($coordinates['x'], $coordinates['y'], $coordinates['z'], $coordinates['m']);
@@ -146,7 +147,7 @@ class MultiPoint extends GeometryCollection
     /**
      * Gets a point at specified index from the collection.
      *
-     * @param   integer $index      The index of the point.
+     * @param   int     $index      The index of the point.
      *
      * @return  Point
      */
@@ -157,7 +158,7 @@ class MultiPoint extends GeometryCollection
     
     /**
      * Gets all the points in the collection.
-     * 
+     *
      * @return  Point[]
      */
     public function getPoints()
@@ -167,8 +168,8 @@ class MultiPoint extends GeometryCollection
     
     /**
      * Gets the number of points in the collection.
-     * 
-     * @return  integer
+     *
+     * @return  int
      */
     public function getNumPoints()
     {
@@ -197,5 +198,4 @@ class MultiPoint extends GeometryCollection
     {
         return __NAMESPACE__ . '\\' . static::COLLECTION_CLASS;
     }
-    
 }

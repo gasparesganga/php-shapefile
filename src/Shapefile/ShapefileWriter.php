@@ -1,7 +1,8 @@
 <?php
+
 /**
  * PHP Shapefile - PHP library to read and write ESRI Shapefiles, compatible with WKT and GeoJSON
- * 
+ *
  * @package Shapefile
  * @author  Gaspare Sganga
  * @version 3.2.0
@@ -20,14 +21,6 @@ class ShapefileWriter extends Shapefile
         Shapefile::SHAPE_TYPE_POLYLINE      => 'packPolyLine',
         Shapefile::SHAPE_TYPE_POLYGON       => 'packPolygon',
         Shapefile::SHAPE_TYPE_MULTIPOINT    => 'packMultiPoint',
-        Shapefile::SHAPE_TYPE_POINTZ        => 'packPointZ',
-        Shapefile::SHAPE_TYPE_POLYLINEZ     => 'packPolyLineZ',
-        Shapefile::SHAPE_TYPE_POLYGONZ      => 'packPolygonZ',
-        Shapefile::SHAPE_TYPE_MULTIPOINTZ   => 'packMultiPointZ',
-        Shapefile::SHAPE_TYPE_POINTM        => 'packPointM',
-        Shapefile::SHAPE_TYPE_POLYLINEM     => 'packPolyLineM',
-        Shapefile::SHAPE_TYPE_POLYGONM      => 'packPolygonM',
-        Shapefile::SHAPE_TYPE_MULTIPOINTM   => 'packMultiPointM',
     ];
     
     /** Buffered file types */
@@ -45,18 +38,18 @@ class ShapefileWriter extends Shapefile
     private $buffers = [];
     
     /**
-     * @var integer Buffered records count.
+     * @var int     Buffered records count.
      */
     private $buffered_record_count = 0;
      
     /**
-     * @var integer Current offset in SHP file and buffer (in 16-bit words).
+     * @var int     Current offset in SHP file and buffer (in 16-bit words).
      *              First 50 16-bit are reserved for file header.
      */
-    private $shp_current_offset = 50; 
+    private $shp_current_offset = 50;
     
     /**
-     * @var integer Next available block in DBT file.
+     * @var int     Next available block in DBT file.
      */
     private $dbt_next_available_block = 0;
     
@@ -70,7 +63,7 @@ class ShapefileWriter extends Shapefile
     /////////////////////////////// PUBLIC ///////////////////////////////
     /**
      * Constructor.
-     * 
+     *
      * @param   string|array    $files      Path to SHP file / Array of paths / Array of handles of individual files.
      * @param   array           $options    Optional associative array of options.
      */
@@ -95,7 +88,7 @@ class ShapefileWriter extends Shapefile
         $this->openFiles($files, true);
         
         // Init Buffers
-        $this->buffers = array_fill_keys(array_intersect(self::$buffered_files, array_keys($this->getFiles())), '');  
+        $this->buffers = array_fill_keys(array_intersect(self::$buffered_files, array_keys($this->getFiles())), '');
         
         // Mode overwrite
         if ($this->getOption(Shapefile::OPTION_EXISTING_FILES_MODE) === Shapefile::MODE_OVERWRITE) {
@@ -108,7 +101,7 @@ class ShapefileWriter extends Shapefile
         }
         
         // Mode append
-        if ($this->getOption(Shapefile::OPTION_EXISTING_FILES_MODE) === Shapefile::MODE_APPEND && $this->getFileSize(Shapefile::FILE_SHP) > 0) {        
+        if ($this->getOption(Shapefile::OPTION_EXISTING_FILES_MODE) === Shapefile::MODE_APPEND && $this->getFileSize(Shapefile::FILE_SHP) > 0) {
             // Open Shapefile in reading mode
             $ShapefileReader = new ShapefileReader($this->getFiles(), [
                 Shapefile::OPTION_DBF_CONVERT_TO_UTF8   => false,
@@ -175,7 +168,9 @@ class ShapefileWriter extends Shapefile
         if (!$this->isInitialized()) {
             try {
                 $this->setShapeType(Shapefile::SHAPE_TYPE_NULL);
-            } catch (ShapefileException $e) {}
+            } catch (ShapefileException $e) {
+                // Nothing.
+            }
         }
         
         // Set buffered file pointers to beginning of files
@@ -251,11 +246,11 @@ class ShapefileWriter extends Shapefile
     /**
      * Adds a char field to the Shapefile definition.
      * Returns the effective field name after eventual sanitization.
-     * 
+     *
      * @param   string  $name               Name of the field. Invalid names will be sanitized
      *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      *                                      Only letters, numbers and underscores are allowed.
-     * @param   integer $size               Lenght of the field, between 1 and 254 characters. Defaults to 254.
+     * @param   int     $size               Lenght of the field, between 1 and 254 characters. Defaults to 254.
      *
      * @return  string
      */
@@ -267,7 +262,7 @@ class ShapefileWriter extends Shapefile
     /**
      * Adds a date field to the Shapefile definition.
      * Returns the effective field name after eventual sanitization.
-     * 
+     *
      * @param   string  $name               Name of the field. Invalid names will be sanitized
      *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      *                                      Only letters, numbers and underscores are allowed.
@@ -282,7 +277,7 @@ class ShapefileWriter extends Shapefile
     /**
      * Adds a logical/boolean field to the Shapefile definition.
      * Returns the effective field name after eventual sanitization.
-     * 
+     *
      * @param   string  $name               Name of the field. Invalid names will be sanitized
      *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      *                                      Only letters, numbers and underscores are allowed.
@@ -297,7 +292,7 @@ class ShapefileWriter extends Shapefile
     /**
      * Adds a memo field to the Shapefile definition.
      * Returns the effective field name after eventual sanitization.
-     * 
+     *
      * @param   string  $name               Name of the field. Invalid names will be sanitized
      *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      *                                      Only letters, numbers and underscores are allowed.
@@ -312,12 +307,12 @@ class ShapefileWriter extends Shapefile
     /**
      * Adds numeric to the Shapefile definition.
      * Returns the effective field name after eventual sanitization.
-     * 
+     *
      * @param   string  $name               Name of the field. Invalid names will be sanitized
      *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      *                                      Only letters, numbers and underscores are allowed.
-     * @param   integer $size               Lenght of the field, between 1 and 254 characters. Defaults to 10.
-     * @param   integer $decimals           Optional number of decimal digits. Defaults to 0.
+     * @param   int     $size               Lenght of the field, between 1 and 254 characters. Defaults to 10.
+     * @param   int     $decimals           Optional number of decimal digits. Defaults to 0.
      *
      * @return  string
      */
@@ -329,12 +324,12 @@ class ShapefileWriter extends Shapefile
     /**
      * Adds floating point to the Shapefile definition.
      * Returns the effective field name after eventual sanitization.
-     * 
+     *
      * @param   string  $name               Name of the field. Invalid names will be sanitized
      *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      *                                      Only letters, numbers and underscores are allowed.
-     * @param   integer $size               Lenght of the field, between 1 and 254 characters. Defaults to 20.
-     * @param   integer $decimals           Number of decimal digits. Defaults to 10.
+     * @param   int     $size               Lenght of the field, between 1 and 254 characters. Defaults to 20.
+     * @param   int     $decimals           Number of decimal digits. Defaults to 10.
      *
      * @return  string
      */
@@ -352,7 +347,7 @@ class ShapefileWriter extends Shapefile
     public function writeRecord(Geometry\Geometry $Geometry)
     {
         // Init headers
-        if (!$this->flag_init_headers) { 
+        if (!$this->flag_init_headers) {
             $this->bufferData(Shapefile::FILE_SHP, $this->packNulPadding(Shapefile::SHP_HEADER_SIZE));
             $this->bufferData(Shapefile::FILE_SHX, $this->packNulPadding(Shapefile::SHX_HEADER_SIZE));
             $this->bufferData(Shapefile::FILE_DBF, $this->packNulPadding($this->getDBFHeaderSize()));
@@ -615,74 +610,54 @@ class ShapefileWriter extends Shapefile
         return $this->packInt32L(Shapefile::SHAPE_TYPE_NULL);
     }
     
-    
     /**
-     * Packs a Point shape into binary string.
+     * Packs a Point, PointM or PointZ shape into binary string.
      *
-     * @param   array   $coordinates    Array with "x" and "y" coordinates.
-     * @param   string  $shape_type     Optional shape type to pack in the record.
+     * @param   Geometry    $Geometry   Geometry to pack.
      *
      * @return  string
      */
-    private function packPoint($coordinates, $shape_type = Shapefile::SHAPE_TYPE_POINT)
+    private function packPoint(Geometry\Geometry $Geometry)
     {
+        $array          = $Geometry->getArray();
+        $bounding_box   = $Geometry->getBoundingBox();
+        $is_m           = $this->isM();
+        $is_z           = $this->isZ();
+        $shape_type     = $is_z ? Shapefile::SHAPE_TYPE_POINTZ : ($is_m ? Shapefile::SHAPE_TYPE_POINTM : Shapefile::SHAPE_TYPE_POINT);
+        
         // Shape type
         $ret = $this->packInt32L($shape_type);
         // XY Coordinates
-        $ret .= $this->packXY($coordinates);
+        $ret .= $this->packXY($array);
+        
+        if ($is_z) {
+            // Z Coordinate
+            $ret .= $this->packZ($coordinates);
+        }
+        
+        if ($is_m) {
+            // M Coordinate
+            $ret .= $this->packM($coordinates);
+        }
         
         return $ret;
     }
     
     /**
-     * Packs a PointM shape into binary string.
+     * Packs a MultiPoint, MultiPointM or MultiPointZ shape into binary string.
      *
-     * @param   array   $coordinates    Array with "m" coordinate.
+     * @param   Geometry    $Geometry   Geometry to pack.
      *
      * @return  string
      */
-    private function packPointM($coordinates)
+    private function packMultiPoint(Geometry\Geometry $Geometry)
     {
-        // XY Point
-        $ret = $this->packPoint($coordinates, Shapefile::SHAPE_TYPE_POINTM);
-        // M Coordinate
-        $ret .= $this->packM($coordinates);
+        $array          = $Geometry->getArray();
+        $bounding_box   = $Geometry->getBoundingBox();
+        $is_m           = $this->isM();
+        $is_z           = $this->isZ();
+        $shape_type     = $is_z ? Shapefile::SHAPE_TYPE_MULTIPOINTZ : ($is_m ? Shapefile::SHAPE_TYPE_MULTIPOINTM : Shapefile::SHAPE_TYPE_MULTIPOINT);
         
-        return $ret;
-    }
-    
-    /**
-     * Packs a PointZ shape into binary string.
-     *
-     * @param   array   $coordinates    Array with "z" coordinate.
-     *
-     * @return  string
-     */
-    private function packPointZ($coordinates)
-    {
-        // XY Point
-        $ret = $this->packPoint($coordinates, Shapefile::SHAPE_TYPE_POINTZ);
-        // Z Coordinate
-        $ret .= $this->packZ($coordinates);
-        // M Coordinate
-        $ret .= $this->packM($coordinates);
-        
-        return $ret;
-    }
-    
-    
-    /**
-     * Packs a MultiPoint shape into binary string.
-     *
-     * @param   array   $array          Array with "numpoints" and "points" elements.
-     
-     * @param   string  $shape_type     Optional shape type to pack in the record.
-     * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax values.
-     *
-     * @return  string
-     */
-    private function packMultiPoint($array, $bounding_box, $shape_type = Shapefile::SHAPE_TYPE_MULTIPOINT)
-    {
         // Shape type
         $ret = $this->packInt32L($shape_type);
         // XY Bounding Box
@@ -694,71 +669,69 @@ class ShapefileWriter extends Shapefile
             $ret .= $this->packXY($coordinates);
         }
         
-        return $ret;
-    }
-    
-    /**
-     * Packs a MultiPointM shape into binary string.
-     *
-     * @param   array   $array          Array with "numpoints" and "points" elements.
-     * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax, mmin, mmax values.
-     *
-     * @return  string
-     */
-    private function packMultiPointM($array, $bounding_box)
-    {
-        // XY MultiPoint
-        $ret = $this->packMultiPoint($array, $bounding_box, Shapefile::SHAPE_TYPE_MULTIPOINTM);
-        // M Range
-        $ret .= $this->packMRange($bounding_box);
-        // M Array
-        foreach ($array['points'] as $coordinates) {
-            $ret .= $this->packM($coordinates);
+        if ($is_z) {
+            // Z Range
+            $ret .= $this->packZRange($bounding_box);
+            // Z Array
+            foreach ($array['points'] as $coordinates) {
+                $ret .= $this->packZ($coordinates);
+            }
+        }
+        
+        if ($is_m) {
+            // M Range
+            $ret .= $this->packMRange($bounding_box);
+            // M Array
+            foreach ($array['points'] as $coordinates) {
+                $ret .= $this->packM($coordinates);
+            }
         }
         
         return $ret;
     }
     
     /**
-     * Packs a MultiPointZ shape into binary string.
+     * Packs a PolyLine, PolyLineM or PolyLineZ shape into binary string.
      *
-     * @param   array   $array          Array with "numpoints" and "points" elements.
-     * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax, zmin, zmax, mmin, mmax values.
+     * @param   Geometry    $Geometry       Geometry to pack.
+     * @param   bool        $flag_polygon   Optional flag to pack Polygon shapes.
      *
      * @return  string
      */
-    private function packMultiPointZ($array, $bounding_box)
+    private function packPolyLine(Geometry\Geometry $Geometry, $flag_polygon = false)
     {
-        // XY MultiPoint
-        $ret = $this->packMultiPoint($array, $bounding_box, Shapefile::SHAPE_TYPE_MULTIPOINTZ);
-        // Z Range
-        $ret .= $this->packZRange($bounding_box);
-        // Z Array
-        foreach ($array['points'] as $coordinates) {
-            $ret .= $this->packZ($coordinates);
-        }
-        // M Range
-        $ret .= $this->packMRange($bounding_box);
-        // M Array
-        foreach ($array['points'] as $coordinates) {
-            $ret .= $this->packM($coordinates);
+        $array          = $Geometry->getArray();
+        $bounding_box   = $Geometry->getBoundingBox();
+        $is_m           = $this->isM();
+        $is_z           = $this->isZ();
+        if ($flag_polygon) {
+            $shape_type = $is_z ? Shapefile::SHAPE_TYPE_POLYGONZ : ($is_m ? Shapefile::SHAPE_TYPE_POLYGONM : Shapefile::SHAPE_TYPE_POLYGON);
+        } else {
+            $shape_type = $is_z ? Shapefile::SHAPE_TYPE_POLYLINEZ : ($is_m ? Shapefile::SHAPE_TYPE_POLYLINEM : Shapefile::SHAPE_TYPE_POLYLINE);
         }
         
-        return $ret;
-    }
-    
-    
-    /**
-     * Packs a PolyLine shape into binary string.
-     *
-     * @param   array   $array          Array with "numparts" and "parts" elements.
-     * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax values.
-     * @param   string  $shape_type     Optional shape type to pack in the record.
-     *
-     * @return  string
-     */
-    private function packPolyLine($array, $bounding_box, $shape_type = Shapefile::SHAPE_TYPE_POLYLINE)
-    {
+        // PolyLines and Polygons are always MultiLinestrings and MultiPolygons in Shapefiles
+        if (!isset($array['parts'])) {
+            $array = [
+                'numparts'  => 1,
+                'parts'     => [$array],
+            ];
+        }
+        
+        // Polygons need to be reduced as PolyLines
+        if ($flag_polygon) {
+            $parts = [];
+            foreach ($array['parts'] as $part) {
+                foreach ($part['rings'] as $ring) {
+                    $parts[] = $ring;
+                }
+            }
+            $array = [
+                'numparts'  => count($parts),
+                'parts'     => $parts,
+            ];
+        }
+        
         // Shape type
         $ret = $this->packInt32L($shape_type);
         // XY Bounding Box
@@ -780,133 +753,44 @@ class ShapefileWriter extends Shapefile
             }
         }
         
-        return $ret;
-    }
-    
-    /**
-     * Packs a PolyLineM shape into binary string.
-     *
-     * @param   array   $array          Array with "numparts" and "parts" elements.
-     * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax, mmin, mmax values.
-     * @param   string  $shape_type     Optional shape type to pack in the record.
-     *
-     * @return  string
-     */
-    private function packPolyLineM($array, $bounding_box, $shape_type = Shapefile::SHAPE_TYPE_POLYLINEM)
-    {
-        // XY PolyLine
-        $ret = $this->packPolyLine($array, $bounding_box, $shape_type);
-        // M Range
-        $ret .= $this->packMRange($bounding_box);
-        // M Array
-        foreach ($array['parts'] as $part) {
-            foreach ($part['points'] as $coordinates) {
-                $ret .= $this->packM($coordinates);
-            }
-        }
-        
-        return $ret;
-    }
-    
-    /**
-     * Packs a PolyLineZ shape into binary string.
-     *
-     * @param   array   $array          Array with "numparts" and "parts" elements.
-     * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax, zmin, zmax, mmin, mmax values.
-     * @param   string  $shape_type     Optional shape type to pack in the record.
-     *
-     * @return  string
-     */
-    private function packPolyLineZ($array, $bounding_box, $shape_type = Shapefile::SHAPE_TYPE_POLYLINEZ)
-    {
-        // XY PolyLine
-        $ret = $this->packPolyLine($array, $bounding_box, $shape_type);
-        // Z Range
-        $ret .= $this->packZRange($bounding_box);
-        // Z Array
-        foreach ($array['parts'] as $part) {
-            foreach ($part['points'] as $coordinates) {
-                $ret .= $this->packZ($coordinates);
-            }
-        }
-         // M Range
-        $ret .= $this->packMRange($bounding_box);
-        // M Array
-        foreach ($array['parts'] as $part) {
-            foreach ($part['points'] as $coordinates) {
-                $ret .= $this->packM($coordinates);
-            }
-        }
-        
-        return $ret;
-    }
-    
-    
-    /**
-     * Packs a Polygon shape into binary string.
-     *
-     * @param   array   $array          Array with "numparts" and "parts" elements.
-     * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax values.
-     *
-     * @return  string
-     */
-    private function packPolygon($array, $bounding_box)
-    {
-        return $this->packPolyLine($this->parsePolygon($array), $bounding_box, Shapefile::SHAPE_TYPE_POLYGON);
-    }
-    
-    /**
-     * Packs a PolygonM shape into binary string.
-     *
-     * @param   array   $array          Array with "numparts" and "parts" elements.
-     * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax, mmin, mmax values.
-     *
-     * @return  string
-     */
-    private function packPolygonM($array, $bounding_box)
-    {
-        return $this->packPolyLineM($this->parsePolygon($array), $bounding_box, Shapefile::SHAPE_TYPE_POLYGONM);
-    }
-    
-    /**
-     * Packs a PolygonZ shape into binary string.
-     *
-     * @param   array   $array          Array with "numparts" and "parts" elements.
-     * @param   array   $bounding_box   Associative array with xmin, xmax, ymin, ymax, zmin, zmax, mmin, mmax values.
-     *
-     * @return  string
-     */
-    private function packPolygonZ($array, $bounding_box)
-    {
-        return $this->packPolyLineZ($this->parsePolygon($array), $bounding_box, Shapefile::SHAPE_TYPE_POLYGONZ);
-    }
-    
-    /**
-     * Parses a Polygon array (with multiple "rings" for each "part") into a plain structure of sequential parts
-     * enforcing outer and innner rings orientation.
-     *
-     * @param   array   $array      Array "parts" elements.
-     *
-     * @return  array
-     */
-    private function parsePolygon($array)
-    {
-        $parts = [];
-        foreach ($array['parts'] as $part) {
-            foreach ($part['rings'] as $i => $ring) {
-                // Enforce clockwise outer rings and counterclockwise inner rings
-                $is_clockwise = $this->isClockwise($ring['points']);
-                if (($i == 0 && !$is_clockwise) || ($i > 0 && $is_clockwise)) {
-                    $ring['points'] = array_reverse($ring['points']);
+        if ($is_z) {
+            // Z Range
+            $ret .= $this->packZRange($bounding_box);
+            // Z Array
+            foreach ($array['parts'] as $part) {
+                foreach ($part['points'] as $coordinates) {
+                    $ret .= $this->packZ($coordinates);
                 }
-                $parts[] = $ring;
             }
         }
         
-        return [
-            'numparts'  => count($parts),
-            'parts'     => $parts,
-        ];
+        if ($is_m) {
+            // M Range
+            $ret .= $this->packMRange($bounding_box);
+            // M Array
+            foreach ($array['parts'] as $part) {
+                foreach ($part['points'] as $coordinates) {
+                    $ret .= $this->packM($coordinates);
+                }
+            }
+        }
+        
+        return $ret;
+    }
+    
+    /**
+     * Packs a Polygon, PolygonM or PolygonZ shape into binary string.
+     * It forces closed rings and clockwise orientation in order to comply with ESRI Shapefile specifications.
+     *
+     * @param   Geometry    $Geometry   Geometry to pack.
+     *
+     * @return  string
+     */
+    private function packPolygon(Geometry\Geometry $Geometry)
+    {
+        $Geometry->forceClosedRings();
+        $Geometry->forceClockwise();
+        return $this->packPolyLine($Geometry, true);
     }
     
     
@@ -919,23 +803,10 @@ class ShapefileWriter extends Shapefile
      */
     private function packSHPAndSHXData(Geometry\Geometry $Geometry)
     {
-        // Choose Geometry pack method
-        if ($Geometry->isEmpty()) {
-            $method         = self::$shp_pack_methods[Shapefile::SHAPE_TYPE_NULL];
-            $array          = [];  
-        } else {
-            $method         = self::$shp_pack_methods[$this->getShapeType(Shapefile::FORMAT_INT)];
-            $array          = $Geometry->getArray();
-            $shape_basetype = $this->getBasetype();
-            if (($shape_basetype == Shapefile::SHAPE_TYPE_POLYLINE || $shape_basetype == Shapefile::SHAPE_TYPE_POLYGON) && !isset($array['parts'])) {
-                $array = [
-                    'numparts'  => 1,
-                    'parts'     => [$array],
-                ];
-            }
-        }
         // Pack Geometry data
-        $shp_data = $this->{$method}($array, $Geometry->getBoundingBox());
+        $method = self::$shp_pack_methods[$Geometry->isEmpty() ? Shapefile::SHAPE_TYPE_NULL : $this->getBasetype()];
+        $shp_data = $this->{$method}($Geometry);
+        
         // Compute content lenght in 16-bit words
         $shp_content_length = strlen($shp_data) / 2;
         
@@ -1002,7 +873,7 @@ class ShapefileWriter extends Shapefile
      * Packs DBT data into a binary string and return an array with "blocks" and "data" members.
      *
      * @param   string  $data           Data to write
-     * @param   integer $field_size     Size of the DBF field.
+     * @param   int     $field_size     Size of the DBF field.
      *
      * @return  array
      */
@@ -1037,8 +908,8 @@ class ShapefileWriter extends Shapefile
      * Encodes a value to be written into a DBF field as a raw string.
      *
      * @param   string  $type       Type of the field.
-     * @param   integer $size       Lenght of the field.
-     * @param   integer $decimals   Number of decimal digits for numeric type.
+     * @param   int     $size       Lenght of the field.
+     * @param   int     $decimals   Number of decimal digits for numeric type.
      * @param   string  $value      Value to encode.
      *
      * @return  string|null
@@ -1116,7 +987,7 @@ class ShapefileWriter extends Shapefile
      * Truncates long input strings and right-pads short ones to maximum/minimun lenght.
      *
      * @param   string  $value      Value to pad.
-     * @param   integer $size       Lenght of the field.
+     * @param   int     $size       Lenght of the field.
      *
      * @return  string
      */
@@ -1141,7 +1012,7 @@ class ShapefileWriter extends Shapefile
     /**
      * Packs SHP or SHX file header.
      *
-     * @param   integer $file_size      File size in bytes.
+     * @param   int     $file_size      File size in bytes.
      */
     private function packSHPOrSHXHeader($file_size)
     {
@@ -1226,7 +1097,7 @@ class ShapefileWriter extends Shapefile
     {
         $ret = '';
         
-        // Next available block 
+        // Next available block
         $ret .= $this->packInt32L($this->dbt_next_available_block);
         
         // Reserved bytes
@@ -1267,9 +1138,8 @@ class ShapefileWriter extends Shapefile
      */
     private function arrayColumn($array, $key)
     {
-        return array_map(function($element) use ($key){
+        return array_map(function ($element) use ($key) {
             return $element[$key];
         }, $array);
     }
-    
 }

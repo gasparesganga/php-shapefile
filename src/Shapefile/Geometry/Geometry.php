@@ -1,7 +1,8 @@
 <?php
+
 /**
  * PHP Shapefile - PHP library to read and write ESRI Shapefiles, compatible with WKT and GeoJSON
- * 
+ *
  * @package Shapefile
  * @author  Gaspare Sganga
  * @version 3.2.0
@@ -102,7 +103,7 @@ abstract class Geometry
     /**
      * Gets Geometry bounding box.
      * If a custom one is defined, it will be returned instead of a computed one.
-     * 
+     *
      * @return  array   Associative array with the xmin, xmax, ymin, ymax and optional zmin, zmax, mmin, mmax values.
      */
     abstract public function getBoundingBox();
@@ -112,22 +113,22 @@ abstract class Geometry
      * This is not intended for users, but Shapefile requires it for internal mechanisms.
      *
      * @internal
-     * 
-     * @return  integer
+     *
+     * @return  int
      */
     abstract public function getSHPBasetype();
     
     
     /**
      * Gets the WKT base type of the Geometry.
-     * 
+     *
      * @return  string
      */
     abstract protected function getWKTBasetype();
     
     /**
      * Gets the GeoJSON base type of the Geometry.
-     * 
+     *
      * @return  string
      */
     abstract protected function getGeoJSONBasetype();
@@ -137,7 +138,7 @@ abstract class Geometry
     /////////////////////////////// PUBLIC ///////////////////////////////
     /**
      * Gets the state of the Empty flag.
-     * 
+     *
      * @return  bool
      */
     public function isEmpty()
@@ -147,7 +148,7 @@ abstract class Geometry
     
     /**
      * Gets the state of the Z flag.
-     * 
+     *
      * @return  bool
      */
     public function isZ()
@@ -157,7 +158,7 @@ abstract class Geometry
     
     /**
      * Gets the state of the M flag.
-     * 
+     *
      * @return  bool
      */
     public function isM()
@@ -167,7 +168,7 @@ abstract class Geometry
     
     /**
      * Gets the state of the Deleted flag.
-     * 
+     *
      * @return  bool
      */
     public function isDeleted()
@@ -177,7 +178,7 @@ abstract class Geometry
     
     /**
      * Sets the state of the Deleted flag.
-     * 
+     *
      * @param   bool    $value
      */
     public function setFlagDeleted($value)
@@ -190,7 +191,7 @@ abstract class Geometry
      * Sets a custom bounding box for the Geometry.
      * No check is carried out except a formal compliance of dimensions.
      *
-     * @param   array   $bounding_box    Associative array with the xmin, xmax, ymin, ymax and optional zmin, zmax, mmin, mmax values.
+     * @param   array   $bounding_box   Associative array with the xmin, xmax, ymin, ymax and optional zmin, zmax, mmin, mmax values.
      */
     public function setCustomBoundingBox($bounding_box)
     {
@@ -269,7 +270,7 @@ abstract class Geometry
     /////////////////////////////// PROTECTED ///////////////////////////////
     /**
      * Sets the state of the Empty flag.
-     * 
+     *
      * @param   bool    $value
      */
     protected function setFlagEmpty($value)
@@ -279,7 +280,7 @@ abstract class Geometry
     
     /**
      * Sets the state of the Z flag.
-     * 
+     *
      * @param   bool    $value
      */
     protected function setFlagZ($value)
@@ -289,7 +290,7 @@ abstract class Geometry
     
     /**
      * Sets the state of the M flag.
-     * 
+     *
      * @param   bool    $value
      */
     protected function setFlagM($value)
@@ -311,7 +312,7 @@ abstract class Geometry
     
     /**
      * Gets the custom bounding box.
-     * 
+     *
      * @return  array
      */
     protected function getCustomBoundingBox()
@@ -553,7 +554,7 @@ abstract class Geometry
      * @param   float[] $coordinates    The indexed array of coordinates to parse.
      * @param   bool    $force_z        Flag to enforce the presence of Z dimension.
      * @param   bool    $force_m        Flag to enforce the presence of M dimension.
-     * @param   integer $err_code       Error code to throw an exception in case of invalid input.
+     * @param   int     $err_code       Error code to throw an exception in case of invalid input.
      *
      * @return  array
      */
@@ -561,9 +562,9 @@ abstract class Geometry
     {
         $count = count($coordinates);
         if (
-            $count < 2                              || 
-            (($force_z || $force_m) && $count < 3)  || 
-            ($force_z && $force_m && $count < 4)    || 
+            $count < 2                              ||
+            (($force_z || $force_m) && $count < 3)  ||
+            ($force_z && $force_m && $count < 4)    ||
             $count > 4
         ) {
             throw new ShapefileException($err_code);
@@ -588,5 +589,4 @@ abstract class Geometry
         }
         return $ret;
     }
-    
 }

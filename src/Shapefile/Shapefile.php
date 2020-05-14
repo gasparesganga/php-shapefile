@@ -1,7 +1,8 @@
 <?php
+
 /**
  * PHP Shapefile - PHP library to read and write ESRI Shapefiles, compatible with WKT and GeoJSON
- * 
+ *
  * @package Shapefile
  * @author  Gaspare Sganga
  * @version 3.2.0
@@ -20,11 +21,69 @@ namespace Shapefile;
  */
 abstract class Shapefile
 {
+    /////////////////////////////// PUBLIC CONSTANTS ///////////////////////////////
+    /** Actions */
+    const ACTION_IGNORE     = 0;
+    const ACTION_CHECK      = 1;
+    const ACTION_FORCE      = 2;
+    
+    /** DBF fields types */
+    const DBF_TYPE_CHAR     = 'C';
+    const DBF_TYPE_DATE     = 'D';
+    const DBF_TYPE_LOGICAL  = 'L';
+    const DBF_TYPE_MEMO     = 'M';
+    const DBF_TYPE_NUMERIC  = 'N';
+    const DBF_TYPE_FLOAT    = 'F';
+    
+    /** File types */
+    const FILE_SHP  = 'shp';
+    const FILE_SHX  = 'shx';
+    const FILE_DBF  = 'dbf';
+    const FILE_DBT  = 'dbt';
+    const FILE_PRJ  = 'prj';
+    const FILE_CPG  = 'cpg';
+    
+    /** Return formats  */
+    const FORMAT_INT = 0;
+    const FORMAT_STR = 1;
+    
+    /** File modes */
+    const MODE_PRESERVE     = 0;
+    const MODE_OVERWRITE    = 1;
+    const MODE_APPEND       = 2;
+    
+    /** Polygon orientations */
+    const ORIENTATION_CLOCKWISE         = 0;
+    const ORIENTATION_COUNTERCLOCKWISE  = 1;
+    const ORIENTATION_UNCHANGED         = 2;
+    
+    /** Shape types */
+    const SHAPE_TYPE_NULL           = 0;
+    const SHAPE_TYPE_POINT          = 1;
+    const SHAPE_TYPE_POLYLINE       = 3;
+    const SHAPE_TYPE_POLYGON        = 5;
+    const SHAPE_TYPE_MULTIPOINT     = 8;
+    const SHAPE_TYPE_POINTZ         = 11;
+    const SHAPE_TYPE_POLYLINEZ      = 13;
+    const SHAPE_TYPE_POLYGONZ       = 15;
+    const SHAPE_TYPE_MULTIPOINTZ    = 18;
+    const SHAPE_TYPE_POINTM         = 21;
+    const SHAPE_TYPE_POLYLINEM      = 23;
+    const SHAPE_TYPE_POLYGONM       = 25;
+    const SHAPE_TYPE_MULTIPOINTM    = 28;
+    
+    /** Misc */
+    const EOF       = 0;
+    const UNDEFINED = null;
+    
+    
+    
+    /////////////////////////////// OPTIONS ///////////////////////////////
     /**
      * Number of records to keep into buffer before writing them.
      * Use a value equal or less than 0 to keep all records into buffer and write them at once.
      * ShapefileWriter
-     * @var integer
+     * @var int
      */
     const OPTION_BUFFERED_RECORDS = 'OPTION_BUFFERED_RECORDS';
     const OPTION_BUFFERED_RECORDS_DEFAULT = 10;
@@ -111,17 +170,13 @@ abstract class Shapefile
     const OPTION_ENFORCE_GEOMETRY_DATA_STRUCTURE_DEFAULT = true;
     
     /**
-     * Enforces all Polygons rings to be closed.
-     * ShapefileReader
-     * @var bool
-     */
-    const OPTION_ENFORCE_POLYGON_CLOSED_RINGS = 'OPTION_ENFORCE_POLYGON_CLOSED_RINGS';
-    const OPTION_ENFORCE_POLYGON_CLOSED_RINGS_DEFAULT = true;
-    
-    /**
      * Defines behaviour with existing files with the same name.
+     * Possible values:
+     *    MODE_PRESERVE  : Throws Shapefile::ERR_FILE_EXISTS
+     *    MODE_OVERWRITE : Overwrites existing files
+     *    MODE_APPEND    : Appends new records to existing files
      * ShapefileWriter
-     * @var integer
+     * @var int
      */
     const OPTION_EXISTING_FILES_MODE = 'OPTION_EXISTING_FILES_MODE';
     const OPTION_EXISTING_FILES_MODE_DEFAULT = self::MODE_PRESERVE;
@@ -135,7 +190,7 @@ abstract class Shapefile
     const OPTION_FORCE_MULTIPART_GEOMETRIES_DEFAULT = false;
     
     /**
-     * Ignore Geometries bounding box found in Shapefile.
+     * Ignores Geometries bounding box found in Shapefile.
      * ShapefileReader
      * @var bool
      */
@@ -143,7 +198,7 @@ abstract class Shapefile
     const OPTION_IGNORE_GEOMETRIES_BBOXES_DEFAULT = false;
     
     /**
-     * Ignore bounding box found in Shapefile.
+     * Ignores bounding box found in Shapefile.
      * ShapefileReader
      * @var bool
      */
@@ -151,18 +206,45 @@ abstract class Shapefile
     const OPTION_IGNORE_SHAPEFILE_BBOX_DEFAULT = false;
     
     /**
-     * Invert Polygons orientation when reading/writing a Shapefile.
-     *      ESRI Shapefile specifications establish clockwise order for external rings
-     *      and counterclockwise order for internal ones.
-     *      Simple Features standards and GeoJSON require the opposite!
-     * ShapefileReader and ShapefileWriter
-     * @var bool
+     * Defines action to perform on Polygons rings.
+     * They should be closed but some software don't enforce that, creating uncompliant Shapefiles.
+     * Possible values:
+     *    Shapefile::ACTION_IGNORE : No action taken
+     *    Shapefile::ACTION_CHECK  : Checks for open rings and eventually throws Shapefile::ERR_GEOM_POLYGON_OPEN_RING
+     *    Shapefile::ACTION_FORCE  : Forces all rings to be closed in Polygons
+     * ShapefileReader
+     * @var int
      */
-    const OPTION_INVERT_POLYGONS_ORIENTATION = 'OPTION_INVERT_POLYGONS_ORIENTATION';
-    const OPTION_INVERT_POLYGONS_ORIENTATION_DEFAULT = true;
+    const OPTION_POLYGON_CLOSED_RINGS_ACTION = 'OPTION_POLYGON_CLOSED_RINGS_ACTION';
+    const OPTION_POLYGON_CLOSED_RINGS_ACTION_DEFAULT = self::ACTION_CHECK;
     
     /**
-     * Suppress M dimension.
+     * Allows Polygons orientation to be either clockwise or counterclockwise when reading Shapefiles.
+     * Set to false to enforce strict ESRI Shapefile specs (clockwise outer rings and counterclockwise inner ones)
+     * and raise a Shapefile::ERR_GEOM_POLYGON_WRONG_ORIENTATION error for uncompliant Shapefiles.
+     * ShapefileReader
+     * @var bool
+     */
+    const OPTION_POLYGON_ORIENTATION_READING_AUTOSENSE = 'OPTION_POLYGON_ORIENTATION_READING_AUTOSENSE';
+    const OPTION_POLYGON_ORIENTATION_READING_AUTOSENSE_DEFAULT = true;
+    
+    /**
+     * Forces a specific orientation for Polygons after reading them.
+     * ESRI Shapefile specs establish clockwise orientation for outer rings and counterclockwise for inner ones,
+     * GeoJSON require the opposite (counterclockwise outer rings and clockwise inner ones)
+     * and Simple Features used to be the same as GeoJSON but is currently allowing both.
+     * Possible values:
+     *    Shapefile::ORIENTATION_CLOCKWISE        : Forces clockwise outer ring and counterclockwise inner rings
+     *    Shapefile::ORIENTATION_COUNTERCLOCKWISE : Forces counterclockwise outer ring and clockwise inner rings
+     *    Shapefile::ORIENTATION_UNCHANGED        : Preserves original Shapefile orientation depending on file
+     * ShapefileReader
+     * @var int
+     */
+    const OPTION_POLYGON_OUTPUT_ORIENTATION = 'OPTION_POLYGON_OUTPUT_ORIENTATION';
+    const OPTION_POLYGON_OUTPUT_ORIENTATION_DEFAULT = self::ORIENTATION_COUNTERCLOCKWISE;
+    
+    /**
+     * Suppresses M dimension.
      * ShapefileReader and ShapefileWriter
      * @var bool
      */
@@ -170,7 +252,7 @@ abstract class Shapefile
     const OPTION_SUPPRESS_M_DEFAULT = false;
     
     /**
-     * Suppress Z dimension.
+     * Suppresses Z dimension.
      * ShapefileReader and ShapefileWriter
      * @var bool
      */
@@ -178,105 +260,8 @@ abstract class Shapefile
     const OPTION_SUPPRESS_Z_DEFAULT = false;
     
     
-    /** File types */
-    const FILE_SHP  = 'shp';
-    const FILE_SHX  = 'shx';
-    const FILE_DBF  = 'dbf';
-    const FILE_DBT  = 'dbt';
-    const FILE_PRJ  = 'prj';
-    const FILE_CPG  = 'cpg';
     
-    
-    /** Possible values for OPTION_EXISTING_FILES_MODE */
-    const MODE_PRESERVE     = 0;
-    const MODE_OVERWRITE    = 1;
-    const MODE_APPEND       = 2;
-    
-    
-    /** Actions */
-    const ACTION_IGNORE     = 0;
-    const ACTION_CHECK      = 1;
-    const ACTION_FORCE      = 2;
-    
-    
-    /** Shape types */
-    const SHAPE_TYPE_NULL           = 0;
-    const SHAPE_TYPE_POINT          = 1;
-    const SHAPE_TYPE_POLYLINE       = 3;
-    const SHAPE_TYPE_POLYGON        = 5;
-    const SHAPE_TYPE_MULTIPOINT     = 8;
-    const SHAPE_TYPE_POINTZ         = 11;
-    const SHAPE_TYPE_POLYLINEZ      = 13;
-    const SHAPE_TYPE_POLYGONZ       = 15;
-    const SHAPE_TYPE_MULTIPOINTZ    = 18;
-    const SHAPE_TYPE_POINTM         = 21;
-    const SHAPE_TYPE_POLYLINEM      = 23;
-    const SHAPE_TYPE_POLYGONM       = 25;
-    const SHAPE_TYPE_MULTIPOINTM    = 28;
-    
-    /** Shape types text description */
-    public static $shape_types = [
-        self::SHAPE_TYPE_NULL           => 'Null Shape',
-        self::SHAPE_TYPE_POINT          => 'Point',
-        self::SHAPE_TYPE_POLYLINE       => 'PolyLine',
-        self::SHAPE_TYPE_POLYGON        => 'Polygon',
-        self::SHAPE_TYPE_MULTIPOINT     => 'MultiPoint',
-        self::SHAPE_TYPE_POINTZ         => 'PointZ',
-        self::SHAPE_TYPE_POLYLINEZ      => 'PolyLineZ',
-        self::SHAPE_TYPE_POLYGONZ       => 'PolygonZ',
-        self::SHAPE_TYPE_MULTIPOINTZ    => 'MultiPointZ',
-        self::SHAPE_TYPE_POINTM         => 'PointM',
-        self::SHAPE_TYPE_POLYLINEM      => 'PolyLineM',
-        self::SHAPE_TYPE_POLYGONM       => 'PolygonM',
-        self::SHAPE_TYPE_MULTIPOINTM    => 'MultiPointM',
-    ];
-    
-    /** Shape type return formats */
-    const FORMAT_INT = 0;
-    const FORMAT_STR = 1;
-    
-    
-    /** DBF fields types */
-    const DBF_TYPE_CHAR     = 'C';
-    const DBF_TYPE_DATE     = 'D';
-    const DBF_TYPE_LOGICAL  = 'L';
-    const DBF_TYPE_MEMO     = 'M';
-    const DBF_TYPE_NUMERIC  = 'N';
-    const DBF_TYPE_FLOAT    = 'F';
-    
-    
-    /** Misc */
-    const EOF = 0;
-    
-    
-    /** SHP files constants */
-    const SHP_FILE_CODE         = 9994;
-    const SHP_HEADER_SIZE       = 100;
-    const SHP_NO_DATA_THRESHOLD = -1e38;
-    const SHP_NO_DATA_VALUE     = -1e40;
-    const SHP_VERSION           = 1000;
-    /** SHX files constants */
-    const SHX_HEADER_SIZE       = 100;
-    const SHX_RECORD_SIZE       = 8;
-    /** DBF files constants */
-    const DBF_BLANK             = 0x20;
-    const DBF_DEFAULT_CHARSET   = 'ISO-8859-1';
-    const DBF_DELETED_MARKER    = 0x2a;
-    const DBF_EOF_MARKER        = 0x1a;
-    const DBF_FIELD_TERMINATOR  = 0x0d;
-    const DBF_MAX_FIELD_COUNT   = 255;
-    const DBF_VALUE_MASK_TRUE   = 'TtYy';
-    const DBF_VALUE_FALSE       = 'F';
-    const DBF_VALUE_NULL        = '?';
-    const DBF_VALUE_TRUE        = 'T';
-    const DBF_VERSION           = 0x03;
-    const DBF_VERSION_WITH_DBT  = 0x83;
-    /** DBT files constants */
-    const DBT_BLOCK_SIZE        = 512;
-    const DBT_FIELD_TERMINATOR  = 0x1a;
-    
-    
-    /** Errors */
+    /////////////////////////////// ERRORS ///////////////////////////////
     const ERR_UNDEFINED = 'ERR_UNDEFINED';
     const ERR_UNDEFINED_MESSAGE = "Undefined error.";
     
@@ -370,11 +355,14 @@ abstract class Shapefile
     const ERR_GEOM_POLYGON_OPEN_RING = 'ERR_GEOM_POLYGON_OPEN_RING';
     const ERR_GEOM_POLYGON_OPEN_RING_MESSAGE = "Polygons cannot contain open rings";
     
-    const ERR_GEOM_POLYGON_AREA_TOO_SMALL = 'ERR_GEOM_POLYGON_AREA_TOO_SMALL';
-    const ERR_GEOM_POLYGON_AREA_TOO_SMALL_MESSAGE = "Polygon Area too small, cannot determine vertices orientation";
+    const ERR_GEOM_POLYGON_WRONG_ORIENTATION = 'ERR_GEOM_POLYGON_WRONG_ORIENTATION';
+    const ERR_GEOM_POLYGON_WRONG_ORIENTATION_MESSAGE = "Polygon orientation not compliant with Shapefile specifications";
     
-    const ERR_GEOM_POLYGON_NOT_VALID = 'ERR_GEOM_POLYGON_NOT_VALID';
-    const ERR_GEOM_POLYGON_NOT_VALID_MESSAGE = "Polygon not valid or Polygon Area too small. Please check the geometries before reading the Shapefile";
+    const ERR_GEOM_RING_AREA_TOO_SMALL = 'ERR_GEOM_RING_AREA_TOO_SMALL';
+    const ERR_GEOM_RING_AREA_TOO_SMALL_MESSAGE = "Ring area too small. Cannot determine ring orientation";
+    
+    const ERR_GEOM_RING_NOT_ENOUGH_VERTICES = 'ERR_GEOM_RING_NOT_ENOUGH_VERTICES';
+    const ERR_GEOM_RING_NOT_ENOUGH_VERTICES_MESSAGE = "Not enough vertices. Cannot determine ring orientation";
     
     const ERR_INPUT_RECORD_NOT_FOUND = 'ERR_INPUT_RECORD_NOT_FOUND';
     const ERR_INPUT_RECORD_NOT_FOUND_MESSAGE = "Record index not found (check the total number of records in the SHP file)";
@@ -401,8 +389,83 @@ abstract class Shapefile
     const ERR_INPUT_NUMERIC_VALUE_OVERFLOW_MESSAGE = "Integer value overflows field size definition";
     
     
+        
+    /////////////////////////////// DEPRECATED CONSTANTS ///////////////////////////////
     /**
-     * @var integer|null    Shapefile type.
+     * @deprecated  This option was deprecated with v3.3.0 and will disappear in the next releases.
+     *              Use OPTION_POLYGON_CLOSED_RINGS_ACTION instead.
+     */
+    const OPTION_ENFORCE_POLYGON_CLOSED_RINGS = 'OPTION_ENFORCE_POLYGON_CLOSED_RINGS';
+    
+    /**
+     * @deprecated  This option was deprecated with v3.3.0 and will disappear in the next releases.
+     *              Use OPTION_POLYGON_OUTPUT_ORIENTATION instead.
+     */
+    const OPTION_INVERT_POLYGONS_ORIENTATION = 'OPTION_INVERT_POLYGONS_ORIENTATION';
+    
+    /**
+     * @deprecated  This constant was deprecated with v3.3.0 and will disappear in the next releases.
+     *              Use ERR_GEOM_RING_AREA_TOO_SMALL instead.
+     */
+    const ERR_GEOM_POLYGON_AREA_TOO_SMALL = 'ERR_GEOM_RING_AREA_TOO_SMALL';
+    
+    /**
+     * @deprecated  This constant was deprecated with v3.3.0 and will disappear in the next releases.
+     *              Use ERR_GEOM_POLYGON_WRONG_ORIENTATION instead.
+     */
+    const ERR_GEOM_POLYGON_NOT_VALID = 'ERR_GEOM_POLYGON_WRONG_ORIENTATION';
+    
+    
+    
+    /////////////////////////////// INTERNAL CONSTANTS ///////////////////////////////
+    /** SHP files constants */
+    const SHP_FILE_CODE         = 9994;
+    const SHP_HEADER_SIZE       = 100;
+    const SHP_NO_DATA_THRESHOLD = -1e38;
+    const SHP_NO_DATA_VALUE     = -1e40;
+    const SHP_VERSION           = 1000;
+    /** SHX files constants */
+    const SHX_HEADER_SIZE       = 100;
+    const SHX_RECORD_SIZE       = 8;
+    /** DBF files constants */
+    const DBF_BLANK             = 0x20;
+    const DBF_DEFAULT_CHARSET   = 'ISO-8859-1';
+    const DBF_DELETED_MARKER    = 0x2a;
+    const DBF_EOF_MARKER        = 0x1a;
+    const DBF_FIELD_TERMINATOR  = 0x0d;
+    const DBF_MAX_FIELD_COUNT   = 255;
+    const DBF_VALUE_MASK_TRUE   = 'TtYy';
+    const DBF_VALUE_FALSE       = 'F';
+    const DBF_VALUE_NULL        = '?';
+    const DBF_VALUE_TRUE        = 'T';
+    const DBF_VERSION           = 0x03;
+    const DBF_VERSION_WITH_DBT  = 0x83;
+    /** DBT files constants */
+    const DBT_BLOCK_SIZE        = 512;
+    const DBT_FIELD_TERMINATOR  = 0x1a;
+    
+    /** Shape types text description */
+    public static $shape_types = [
+        self::SHAPE_TYPE_NULL           => 'Null Shape',
+        self::SHAPE_TYPE_POINT          => 'Point',
+        self::SHAPE_TYPE_POLYLINE       => 'PolyLine',
+        self::SHAPE_TYPE_POLYGON        => 'Polygon',
+        self::SHAPE_TYPE_MULTIPOINT     => 'MultiPoint',
+        self::SHAPE_TYPE_POINTZ         => 'PointZ',
+        self::SHAPE_TYPE_POLYLINEZ      => 'PolyLineZ',
+        self::SHAPE_TYPE_POLYGONZ       => 'PolygonZ',
+        self::SHAPE_TYPE_MULTIPOINTZ    => 'MultiPointZ',
+        self::SHAPE_TYPE_POINTM         => 'PointM',
+        self::SHAPE_TYPE_POLYLINEM      => 'PolyLineM',
+        self::SHAPE_TYPE_POLYGONM       => 'PolygonM',
+        self::SHAPE_TYPE_MULTIPOINTM    => 'MultiPointM',
+    ];
+    
+    
+    
+    /////////////////////////////// PRIVATE VARIABLES ///////////////////////////////
+    /**
+     * @var int|null    Shapefile type.
      */
     private $shape_type = null;
     
@@ -431,8 +494,8 @@ abstract class Shapefile
      *              Every field is represented by an array with the following structure:
      *              [
      *                  "type"      => string
-     *                  "size"      => integer
-     *                  "decimals"  => integer
+     *                  "size"      => int
+     *                  "decimals"  => int
      *              ]
      */
     private $fields = [];
@@ -454,7 +517,7 @@ abstract class Shapefile
     private $options = [];
     
     /**
-     * @var integer Total number of records.
+     * @var int     Total number of records.
      */
     private $tot_records;
     
@@ -474,7 +537,7 @@ abstract class Shapefile
     /////////////////////////////// PUBLIC ///////////////////////////////
     /**
      * Checks if Shapefile is of type Z.
-     * 
+     *
      * @return  bool
      */
     public function isZ()
@@ -485,7 +548,7 @@ abstract class Shapefile
     
     /**
      * Checks if Shapefile is of type M.
-     * 
+     *
      * @return  bool
      */
     public function isM()
@@ -496,13 +559,13 @@ abstract class Shapefile
     
     /**
      * Gets shape type either as integer or string.
-     * 
-     * @param   integer $format     Optional desired output format.
+     *
+     * @param   int     $format     Optional desired output format.
      *                              It can be on of the following:
      *                              - Shapefile::FORMAT_INT [default]
      *                              - Shapefile::FORMAT_STR
-     * 
-     * @return  integer|string
+     *
+     * @return  int|string
      */
     public function getShapeType($format = Shapefile::FORMAT_INT)
     {
@@ -519,7 +582,7 @@ abstract class Shapefile
     
     /**
      * Gets Shapefile bounding box.
-     * 
+     *
      * @return  array
      */
     public function getBoundingBox()
@@ -563,7 +626,7 @@ abstract class Shapefile
     
     /**
      * Gets all fields names.
-     * 
+     *
      * @return  array
      */
     public function getFieldsNames()
@@ -573,7 +636,7 @@ abstract class Shapefile
     
     /**
      * Gets all fields definitions.
-     * 
+     *
      * @return  array
      */
     public function getFields()
@@ -598,7 +661,7 @@ abstract class Shapefile
      *
      * @param   string  $name   Name of the field.
      *
-     * @return  integer
+     * @return  int
      */
     public function getFieldSize($name)
     {
@@ -610,7 +673,7 @@ abstract class Shapefile
      *
      * @param   string  $name   Name of the field.
      *
-     * @return  integer
+     * @return  int
      */
     public function getFieldDecimals($name)
     {
@@ -619,12 +682,12 @@ abstract class Shapefile
     
     /**
      * Gets a complete field definition.
-     * 
+     *
      * The returned array contains the following elements:
      *  [
      *      "type"      => string
-     *      "size"      => integer
-     *      "decimals"  => integer
+     *      "size"      => int
+     *      "decimals"  => int
      *  ]
      *
      * @param   string  $name   Name of the field.
@@ -644,7 +707,7 @@ abstract class Shapefile
     /**
      * Gets total number of records in SHP and DBF files.
      *
-     * @return  integer
+     * @return  int
      */
     public function getTotRecords()
     {
@@ -706,14 +769,16 @@ abstract class Shapefile
             $this->filenames = [];
         } else {
             // Filenames
-            foreach ([
-                Shapefile::FILE_SHP => true,
-                Shapefile::FILE_SHX => true,
-                Shapefile::FILE_DBF => true,
-                Shapefile::FILE_DBT => false,
-                Shapefile::FILE_PRJ => false,
-                Shapefile::FILE_CPG => false,
-            ] as $type => $required) { 
+            foreach (
+                [
+                    Shapefile::FILE_SHP => true,
+                    Shapefile::FILE_SHX => true,
+                    Shapefile::FILE_DBF => true,
+                    Shapefile::FILE_DBT => false,
+                    Shapefile::FILE_PRJ => false,
+                    Shapefile::FILE_CPG => false,
+                ] as $type => $required
+            ) {
                 if (isset($files[$type])) {
                     if (
                             (!$write_access && is_string($files[$type]) && is_readable($files[$type]) && is_file($files[$type]))
@@ -752,7 +817,7 @@ abstract class Shapefile
      * Truncates an open resource handle to a given length.
      *
      * @param   string  $file_type  File type.
-     * @param   integer $size       Optional size to truncate to.
+     * @param   int     $size       Optional size to truncate to.
      *
      * @return  bool
      */
@@ -798,7 +863,7 @@ abstract class Shapefile
      *
      * @param   string  $file_type  File type (member of $this->files array).
      *
-     * @return  integer
+     * @return  int
      */
     protected function getFileSize($file_type)
     {
@@ -810,7 +875,7 @@ abstract class Shapefile
      *
      * @param   string  $file_type  File type (member of $this->files array).
      *
-     * @return  integer
+     * @return  int
      */
     protected function getFilePointer($file_type)
     {
@@ -821,7 +886,7 @@ abstract class Shapefile
      * Sets the pointer position of a resource handle to specified value.
      *
      * @param   string  $file_type  File type (member of $this->files array).
-     * @param   integer $position   The position to set the pointer to.
+     * @param   int     $position   The position to set the pointer to.
      */
     protected function setFilePointer($file_type, $position)
     {
@@ -842,7 +907,7 @@ abstract class Shapefile
      * Increase the pointer position of a resource handle of specified value.
      *
      * @param   string  $file_type  File type (member of $this->files array).
-     * @param   integer $offset     The offset to move the pointer for.
+     * @param   int     $offset     The offset to move the pointer for.
      */
     protected function setFileOffset($file_type, $offset)
     {
@@ -853,7 +918,7 @@ abstract class Shapefile
      * Reads data from an open resource handle.
      *
      * @param   string  $file_type      File type.
-     * @param   integer $length         Number of bytes to read.
+     * @param   int     $length         Number of bytes to read.
      *
      * @return  string
      */
@@ -880,8 +945,8 @@ abstract class Shapefile
     }
     
     /**
-     * Checks if machine is big endian. 
-     * 
+     * Checks if machine is big endian.
+     *
      * @return  bool
      */
     protected function isBigEndianMachine()
@@ -895,7 +960,7 @@ abstract class Shapefile
     
     /**
      * Initializes options with default and user-provided values.
-     * 
+     *
      * @param   array   $options    Array of options to initialize.
      * @param   array   $custom     User-provided options
      */
@@ -960,8 +1025,8 @@ abstract class Shapefile
     /**
      * Sets shape type.
      * It can be called just once for an instance of the class.
-     * 
-     * @param   integer $type   Shape type. It can be on of the following:
+     *
+     * @param   int     $type   Shape type. It can be on of the following:
      *                          - Shapefile::SHAPE_TYPE_NULL
      *                          - Shapefile::SHAPE_TYPE_POINT
      *                          - Shapefile::SHAPE_TYPE_POLYLINE
@@ -989,8 +1054,8 @@ abstract class Shapefile
     
     /**
      * Gets Shapefile base type, regardless of Z and M dimensions.
-     * 
-     * @return  integer
+     *
+     * @return  int
      */
     protected function getBasetype()
     {
@@ -1045,7 +1110,7 @@ abstract class Shapefile
     /**
      * Sets current total number of records.
      *
-     * @param   integer     tot_records     Total number of records currently in the files.
+     * @param   int     tot_records     Total number of records currently in the files.
      */
     protected function setTotRecords($tot_records)
     {
@@ -1054,7 +1119,7 @@ abstract class Shapefile
     
     /**
      * Gets the state of the initialized flag.
-     * 
+     *
      * @return  bool
      */
     protected function isInitialized()
@@ -1064,7 +1129,7 @@ abstract class Shapefile
     
     /**
      * Sets the state of the initialized flag.
-     * 
+     *
      * @param   bool    $value
      */
     protected function setFlagInitialized($value)
@@ -1076,7 +1141,7 @@ abstract class Shapefile
     /**
      * Adds a field to the shapefile definition.
      * Returns the effective field name after eventual sanitization.
-     * 
+     *
      * @param   string  $name               Name of the field. Invalid names will be sanitized
      *                                      (maximum 10 characters, only letters, numbers and underscores are allowed).
      * @param   string  $type               Type of the field. It can be on of the following:
@@ -1086,8 +1151,8 @@ abstract class Shapefile
      *                                      - Shapefile::DBF_TYPE_MEMO
      *                                      - Shapefile::DBF_TYPE_NUMERIC
      *                                      - Shapefile::DBF_TYPE_FLOAT
-     * @param   integer $size               Lenght of the field, depending on the type.
-     * @param   integer $decimals           Optional number of decimal digits for numeric type.
+     * @param   int     $size               Lenght of the field, depending on the type.
+     * @param   int     $decimals           Optional number of decimal digits for numeric type.
      *
      * @return  string
      */
@@ -1168,46 +1233,10 @@ abstract class Shapefile
     
     
     /**
-     * Checks whether a ring is clockwise or not.
-     * It uses Gauss's area formula to check for positive or negative orientation.
-     *
-     * An optional $exp parameter is used in order to deal with small polygons.
-     *
-     * @param   array   $points     Array of points. Each element must have a "x" and "y" member.
-     * @param   integer $exp        Optional exponent to deal with small areas.
-     *
-     * @return  bool
-     */
-    protected function isClockwise($points, $exp = 1)
-    {
-        $num_points = count($points);
-        if ($num_points < 2) {
-            return true;
-        }
-        
-        $num_points--;
-        $tot = 0;
-        for ($i = 0; $i < $num_points; ++$i) {
-            $tot += ($exp * $points[$i]['x'] * $points[$i+1]['y']) - ($exp * $points[$i]['y'] * $points[$i+1]['x']);
-        }
-        $tot += ($exp * $points[$num_points]['x'] * $points[0]['y']) - ($exp * $points[$num_points]['y'] * $points[0]['x']);
-        
-        if ($tot == 0) {
-            if ($exp >= pow(10, 9)) {
-                throw new ShapefileException(Shapefile::ERR_GEOM_POLYGON_AREA_TOO_SMALL);
-            }
-            return $this->isClockwise($points, $exp * pow(10, 3));
-        }
-        
-        return $tot < 0;
-    }
-    
-    
-    /**
      * Pairs a Geometry with the Shapefile.
      * It enforces the Geometry type and computes Shapefile bounding box.
      * After that the Shapefile will be considered as "initialized" and no changes will be allowd to its structure.
-     * 
+     *
      * @param   Geometry    $Geometry     Geometry to pair with.
      */
     protected function pairGeometry(Geometry\Geometry $Geometry)
@@ -1331,5 +1360,4 @@ abstract class Shapefile
         }
         return $ret;
     }
-    
 }

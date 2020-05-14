@@ -1,7 +1,8 @@
 <?php
+
 /**
  * PHP Shapefile - PHP library to read and write ESRI Shapefiles, compatible with WKT and GeoJSON
- * 
+ *
  * @package Shapefile
  * @author  Gaspare Sganga
  * @version 3.2.0
@@ -15,7 +16,7 @@ namespace Shapefile;
  * Exception throw by PHP Shapefile library.
  */
 class ShapefileException extends \Exception
-{    
+{
     /**
      * @var string      Error type that raised the exception.
      */
@@ -61,5 +62,4 @@ class ShapefileException extends \Exception
     {
         return $this->details;
     }
-    
 }

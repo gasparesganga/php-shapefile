@@ -1,7 +1,8 @@
 <?php
+
 /**
  * PHP Shapefile - PHP library to read and write ESRI Shapefiles, compatible with WKT and GeoJSON
- * 
+ *
  * @package Shapefile
  * @author  Gaspare Sganga
  * @version 3.2.0
@@ -23,7 +24,7 @@ use Shapefile\ShapefileException;
  *      [z] => float
  *      [m] => float/bool
  *  ]
- *  
+ *
  *  - WKT:
  *      POINT [Z][M] (x y z m)
  *
@@ -43,22 +44,22 @@ class Point extends Geometry
     const GEOJSON_BASETYPE  = 'Point';
     
     /**
-     * @var float   X coordinate
+     * @var float|null  X coordinate
      */
     private $x = null;
     
     /**
-     * @var float   Y coordinate
+     * @var float|null  Y coordinate
      */
     private $y = null;
     
     /**
-     * @var float   Z coordinate
+     * @var floa|null   Z coordinate
      */
     private $z = null;
     
     /**
-     * @var float   M coordinate
+     * @var float|bool|null     M coordinate
      */
     private $m = null;
     
@@ -66,11 +67,11 @@ class Point extends Geometry
     /////////////////////////////// PUBLIC ///////////////////////////////
     /**
      * Constructor.
-     * 
-     * @param   float   $x      X coordinate
-     * @param   float   $y      Y coordinate
-     * @param   float   $z      Z coordinate
-     * @param   float   $m      M coordinate
+     *
+     * @param   float       $x      X coordinate
+     * @param   float       $y      Y coordinate
+     * @param   float       $z      Z coordinate
+     * @param   float|bool  $m      M coordinate
      */
     public function __construct($x = null, $y = null, $z = null, $m = null)
     {
@@ -183,7 +184,7 @@ class Point extends Geometry
     
     /**
      * Gets X coordinate
-     * 
+     *
      * @return  float
      */
     public function getX()
@@ -193,7 +194,7 @@ class Point extends Geometry
     
     /**
      * Gets Y coordinate
-     * 
+     *
      * @return  float
      */
     public function getY()
@@ -203,7 +204,7 @@ class Point extends Geometry
     
     /**
      * Gets Z coordinate
-     * 
+     *
      * @return  float
      */
     public function getZ()
@@ -213,7 +214,7 @@ class Point extends Geometry
     
     /**
      * Gets M coordinate
-     * 
+     *
      * @return  float
      */
     public function getM()
@@ -224,10 +225,10 @@ class Point extends Geometry
     
     /**
      * @internal
-     * 
+     *
      * Gets an indexed array of coordinates.
      * This is not actually for public use, rather it is used by other classes in the library.
-     * 
+     *
      * @return  array
      */
     public function getRawArray()
@@ -262,11 +263,11 @@ class Point extends Geometry
     /****************************** PRIVATE ******************************/
     /**
      * Initializes Geometry with coordinates.
-     * 
-     * @param   float   $x      X coordinate
-     * @param   float   $y      Y coordinate
-     * @param   float   $z      Z coordinate
-     * @param   float   $m      M coordinate
+     *
+     * @param   float       $x      X coordinate
+     * @param   float       $y      Y coordinate
+     * @param   float       $z      Z coordinate
+     * @param   float|bool  $m      M coordinate
      */
     private function init($x = null, $y = null, $z = null, $m = null)
     {
@@ -290,7 +291,7 @@ class Point extends Geometry
     
     /**
      * Validates a coordinate value.
-     * 
+     *
      * @param   float   $value  Coordinate value
      *
      * @return float
@@ -302,5 +303,4 @@ class Point extends Geometry
         }
         return floatval($value);
     }
-    
 }

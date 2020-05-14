@@ -1,7 +1,8 @@
 <?php
+
 /**
  * PHP Shapefile - PHP library to read and write ESRI Shapefiles, compatible with WKT and GeoJSON
- * 
+ *
  * @package Shapefile
  * @author  Gaspare Sganga
  * @version 3.2.0
@@ -31,7 +32,7 @@ abstract class GeometryCollection extends Geometry
     /////////////////////////////// ABSTRACT ///////////////////////////////
     /**
      * Gets the class name of the base geometries in the collection.
-     * 
+     *
      * @return  string
      */
     abstract protected function getCollectionClass();
@@ -41,14 +42,14 @@ abstract class GeometryCollection extends Geometry
     /////////////////////////////// PUBLIC ///////////////////////////////
     /**
      * Constructor.
-     * 
+     *
      * @param   Geometry[]      $geometries     Optional array of geometries to initialize the collection.
      */
     public function __construct(array $geometries = null)
     {
         if ($geometries !== null) {
             foreach ($geometries as $Geometry) {
-               $this->addGeometry($Geometry);
+                $this->addGeometry($Geometry);
             }
         }
     }
@@ -104,7 +105,7 @@ abstract class GeometryCollection extends Geometry
     
     
     
-    /////////////////////////////// PROTECTED ///////////////////////////////    
+    /////////////////////////////// PROTECTED ///////////////////////////////
     /**
      * Adds a Geometry to the collection.
      * It enforces all geometries to be of the same type.
@@ -115,7 +116,7 @@ abstract class GeometryCollection extends Geometry
     {
         if (!is_a($Geometry, $this->getCollectionClass())) {
             throw new ShapefileException(Shapefile::ERR_INPUT_GEOMETRY_TYPE_NOT_VALID, $this->getCollectionClass());
-        }      
+        }
         if (!$Geometry->isEmpty()) {
             if ($this->isEmpty()) {
                 $this->setFlagEmpty(false);
@@ -132,8 +133,8 @@ abstract class GeometryCollection extends Geometry
     
     /**
      * Gets a Geometry at specified index from the collection.
-     * 
-     * @param   integer $index      The index of the Geometry.
+     *
+     * @param   int     $index      The index of the Geometry.
      *
      * @return  Geometry
      */
@@ -147,7 +148,7 @@ abstract class GeometryCollection extends Geometry
     
     /**
      * Gets all the geometries in the collection.
-     * 
+     *
      * @return  Geometry[]
      */
     protected function getGeometries()
@@ -157,12 +158,19 @@ abstract class GeometryCollection extends Geometry
     
     /**
      * Gets the number of geometries in the collection.
-     * 
-     * @return  integer
+     *
+     * @return  int
      */
     protected function getNumGeometries()
     {
         return count($this->geometries);
     }
-      
+    
+    /**
+     * Reverses the order of geometries in the collection.
+     */
+    protected function reverseGeometries()
+    {
+        $this->geometries = array_reverse($this->geometries);
+    }
 }

@@ -1,7 +1,8 @@
 <?php
+
 /**
  * PHP Shapefile - PHP library to read and write ESRI Shapefiles, compatible with WKT and GeoJSON
- * 
+ *
  * @package Shapefile
  * @author  Gaspare Sganga
  * @version 3.2.0
@@ -38,7 +39,7 @@ use Shapefile\ShapefileException;
  *          ]
  *      ]
  *  ]
- *  
+ *
  *  - WKT:
  *      MULTIPOLYGON [Z][M] (((x y z m, x y z m, x y z m, x y z m), (x y z m, x y z m, x y z m)), ((x y z m, x y z m, x y z m, x y z m), (x y z m, x y z m, x y z m)))
  *
@@ -65,21 +66,35 @@ class MultiPolygon extends GeometryCollection
     
     
     /**
-     * @var bool    Flag representing whether a closed rings check must be performed.
+     * @var int     Action to perform on polygons rings.
      */
-    private $flag_enforce_closed_rings = false;
+    private $closed_rings;
+    
+    /**
+     * @var int     Orientation to force for polygons rings.
+     */
+    private $force_orientation;
+    
     
     
     /////////////////////////////// PUBLIC ///////////////////////////////
     /**
      * Constructor.
-     * 
-     * @param   Polygon[]   $polygons                   Optional array of polygons to initialize the multipolygon.
-     * @param   bool        $flag_enforce_closed_rings  Optional flag to enforce closed rings check.
+     *
+     * @param   Polygon[]   $polygons           Optional array of polygons to initialize the multipolygon.
+     * @param   int         $closed_rings       Optional action to perform on polygons rings. Possible values:
+     *                                              - Shapefile::ACTION_IGNORE
+     *                                              - Shapefile::ACTION_CHECK
+     *                                              - Shapefile::ACTION_FORCE
+     * @param   int         $force_orientation  Optional orientation to force for polygons rings. Possible values:
+     *                                              - Shapefile::ORIENTATION_CLOCKWISE
+     *                                              - Shapefile::ORIENTATION_COUNTERCLOCKWISE
+     *                                              - Shapefile::ORIENTATION_UNCHANGED
      */
-    public function __construct(array $polygons = null, $flag_enforce_closed_rings = true)
+    public function __construct(array $polygons = null, $closed_rings = Shapefile::ACTION_CHECK, $force_orientation = Shapefile::ORIENTATION_COUNTERCLOCKWISE)
     {
-        $this->flag_enforce_closed_rings = $flag_enforce_closed_rings;
+        $this->closed_rings         = $closed_rings;
+        $this->force_orientation    = $force_orientation;
         parent::__construct($polygons);
     }
     
@@ -94,7 +109,7 @@ class MultiPolygon extends GeometryCollection
             if (!isset($part['rings']) || !is_array($part['rings'])) {
                 throw new ShapefileException(Shapefile::ERR_INPUT_ARRAY_NOT_VALID);
             }
-            $Polygon = new Polygon(null, $this->flag_enforce_closed_rings);
+            $Polygon = new Polygon(null, $this->closed_rings, $this->force_orientation);
             foreach ($part['rings'] as $part) {
                 if (!isset($part['points']) || !is_array($part['points'])) {
                     throw new ShapefileException(Shapefile::ERR_INPUT_ARRAY_NOT_VALID);
@@ -107,7 +122,7 @@ class MultiPolygon extends GeometryCollection
                 }
                 $Polygon->addLinestring($Linestring);
             }
-            $this->addPolygon($Polygon);
+            $this->addGeometry($Polygon, false);
         }
     }
     
@@ -119,7 +134,7 @@ class MultiPolygon extends GeometryCollection
             $force_z = $this->wktIsZ($wkt);
             $force_m = $this->wktIsM($wkt);
             foreach (explode(')),((', substr($this->wktExtractData($wkt), 2, -2)) as $part) {
-                $Polygon = new Polygon(null, $this->flag_enforce_closed_rings);
+                $Polygon = new Polygon(null, $this->closed_rings, $this->force_orientation);
                 foreach (explode('),(', $part) as $ring) {
                     $Linestring = new Linestring();
                     foreach (explode(',', $ring) as $wkt_coordinates) {
@@ -129,7 +144,7 @@ class MultiPolygon extends GeometryCollection
                     }
                     $Polygon->addLinestring($Linestring);
                 }
-                $this->addPolygon($Polygon);
+                $this->addGeometry($Polygon, false);
             }
         }
     }
@@ -141,7 +156,7 @@ class MultiPolygon extends GeometryCollection
         if ($geojson !== null) {
             $force_m = $this->geojsonIsM($geojson['type']);
             foreach ($geojson['coordinates'] as $part) {
-                $Polygon = new Polygon(null, $this->flag_enforce_closed_rings);
+                $Polygon = new Polygon(null, $this->closed_rings, $this->force_orientation);
                 foreach ($part as $ring) {
                     $Linestring = new Linestring();
                     foreach ($ring as $geojson_coordinates) {
@@ -151,7 +166,7 @@ class MultiPolygon extends GeometryCollection
                     }
                     $Polygon->addLinestring($Linestring);
                 }
-                $this->addPolygon($Polygon);
+                $this->addGeometry($Polygon, false);
             }
         }
     }
@@ -184,7 +199,6 @@ class MultiPolygon extends GeometryCollection
                     $rings[] = '(' . implode(', ', $points) . ')';
                 }
                 $parts[] = '(' . implode(', ', $rings) . ')';
-                
             }
             $ret .= '(' . implode(', ', $parts) . ')';
         }
@@ -219,13 +233,13 @@ class MultiPolygon extends GeometryCollection
      */
     public function addPolygon(Polygon $Polygon)
     {
-        $this->addGeometry($Polygon);
+        $this->addGeometry($Polygon, true);
     }
     
     /**
      * Gets a polygon at specified index from the collection.
      *
-     * @param   integer $index      The index of the polygon.
+     * @param   int     $index      The index of the polygon.
      *
      * @return  Polygon
      */
@@ -236,7 +250,7 @@ class MultiPolygon extends GeometryCollection
     
     /**
      * Gets all the polygons in the collection.
-     * 
+     *
      * @return  Polygon[]
      */
     public function getPolygons()
@@ -246,12 +260,106 @@ class MultiPolygon extends GeometryCollection
     
     /**
      * Gets the number of polygons in the collection.
-     * 
-     * @return  integer
+     *
+     * @return  int
      */
     public function getNumPolygons()
     {
         return $this->getNumGeometries();
+    }
+    
+    
+    /**
+     * Forces multipolygon rings to be closed.
+     */
+    public function forceClosedRings()
+    {
+        foreach ($this->getPolygons() as $Polygon) {
+            $Polygon->forceClosedRings();
+        }
+    }
+    
+    
+    /**
+     * Checks whether all multipolygon outer rings have a clockwise orientation and all the inner rings have a counterclockwise one.
+     * Note that a false return value does not guarantee multipolygon is strictly counterclockwise. Use MultiPolygon::forceCounterClockwise() to enforce that!
+     *
+     * Returns Shapefile::UNDEFINED if geometry is empty.
+     *
+     * @return  bool|Shapefile::UNDEFINED
+     */
+    public function isClockwise()
+    {
+        if ($this->isEmpty()) {
+            return Shapefile::UNDEFINED;
+        }
+        
+        foreach ($this->getPolygons() as $Polygon) {
+            if ($Polygon->getOuterRing()->isClockwise(true) === false) {
+                return false;
+            }
+            foreach ($Polygon->getInnerRings() as $Linestring) {
+                if ($Linestring->isClockwise(true) === true) {
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Checks whether all multipolygon outer rings have a counterclockwise orientation and all the inner rings have a clockwise one.
+     * Note that a false return value does not guarantee multipolygon is strictly clockwise. Use MultiPolygon::forceClockwise() to enforce that!
+     *
+     * Returns Shapefile::UNDEFINED if geometry is empty.
+     *
+     * @return  bool|Shapefile::UNDEFINED
+     */
+    public function isCounterClockwise()
+    {
+        if ($this->isEmpty()) {
+            return Shapefile::UNDEFINED;
+        }
+        
+        foreach ($this->getPolygons() as $Polygon) {
+            if ($Polygon->getOuterRing()->isClockwise(true) === true) {
+                return false;
+            }
+            foreach ($Polygon->getInnerRings() as $Linestring) {
+                if ($Linestring->isClockwise(true) === false) {
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Forces all multipolygon outer rings to have a clockwise orientation and all the inner rings to have a counterclockwise one.
+     */
+    public function forceClockwise()
+    {
+        foreach ($this->getPolygons() as $Polygon) {
+            $Polygon->getOuterRing()->forceClockwise();
+            foreach ($Polygon->getInnerRings() as $Linestring) {
+                $Linestring->forceCounterClockwise();
+            }
+        }
+    }
+    
+    /**
+     * Forces all multipolygon outer rings to have a counterclockwise orientation and all the inner rings to have a clockwise one.
+     */
+    public function forceCounterClockwise()
+    {
+        foreach ($this->getPolygons() as $Polygon) {
+            $Polygon->getOuterRing()->forceCounterClockwise();
+            foreach ($Polygon->getInnerRings() as $Linestring) {
+                $Linestring->forceClockwise();
+            }
+        }
     }
     
     
@@ -263,17 +371,28 @@ class MultiPolygon extends GeometryCollection
     
     /////////////////////////////// PROTECTED ///////////////////////////////
     /**
-     * Enforces all linestrings forming polygons in the collection to be closed rings.
-     * 
+     * Enforces class-wide action and orientation for polygons rings.
+     *
      * @param   Geometry    $Polygon
+     * @param   bool        $flag_rings_and_orientation     Optionally enforce class action and orientation for rings.
      */
-    protected function addGeometry(Geometry $Polygon)
+    protected function addGeometry(Geometry $Polygon, $flag_rings_and_orientation = true)
     {
         parent::addGeometry($Polygon);
-        if ($this->flag_enforce_closed_rings) {
-            foreach ($Polygon->getRings() as $Linestring) {
-                if (!$Linestring->isClosedRing()) {
+        
+        if ($flag_rings_and_orientation && ($this->closed_rings != Shapefile::ACTION_IGNORE || $this->force_orientation != Shapefile::ORIENTATION_UNCHANGED)) {
+            foreach ($Polygon->getRings() as $i => $Linestring) {
+                // Closed rings
+                if ($this->closed_rings == Shapefile::ACTION_FORCE) {
+                    $Linestring->forceClosedRing();
+                } elseif ($this->closed_rings == Shapefile::ACTION_CHECK && !$Linestring->isClosedRing()) {
                     throw new ShapefileException(Shapefile::ERR_GEOM_POLYGON_OPEN_RING);
+                }
+                // Orientation
+                if ($this->force_orientation == Shapefile::ORIENTATION_CLOCKWISE) {
+                    $Linestring->{($i == 0) ? 'forceClockwise' : 'forceCounterClockwise'}();
+                } elseif ($this->force_orientation == Shapefile::ORIENTATION_COUNTERCLOCKWISE) {
+                    $Linestring->{($i == 0) ? 'forceCounterClockwise' : 'forceClockwise'}();
                 }
             }
         }
@@ -294,5 +413,4 @@ class MultiPolygon extends GeometryCollection
     {
         return __NAMESPACE__ . '\\' . static::COLLECTION_CLASS;
     }
-       
 }
