@@ -200,6 +200,8 @@ class ShapefileReader extends Shapefile implements \Iterator
      * Sets current record index. Throws an exception if provided index is out of range.
      *
      * @param   int     $index   Index of the record to select.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function setCurrentRecord($index)
     {
@@ -207,6 +209,7 @@ class ShapefileReader extends Shapefile implements \Iterator
             throw new ShapefileException(Shapefile::ERR_INPUT_RECORD_NOT_FOUND, $index);
         }
         $this->current_record = $index;
+        return $this;
     }
     
     /**
@@ -327,6 +330,8 @@ class ShapefileReader extends Shapefile implements \Iterator
     
     /**
      * Reads SHP file header.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     private function readSHPHeader()
     {
@@ -347,10 +352,14 @@ class ShapefileReader extends Shapefile implements \Iterator
             }
             $this->setCustomBoundingBox($bounding_box);
         }
+        
+        return $this;
     }
     
     /**
      * Reads DBF file header.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     private function readDBFHeader()
     {
@@ -390,6 +399,8 @@ class ShapefileReader extends Shapefile implements \Iterator
         if ($this->readChar(Shapefile::FILE_DBF) !== Shapefile::DBF_FIELD_TERMINATOR) {
             throw new ShapefileException(Shapefile::ERR_DBF_FILE_NOT_VALID);
         }
+        
+        return $this;
     }
     
     

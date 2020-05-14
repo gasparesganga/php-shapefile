@@ -222,22 +222,22 @@ class ShapefileWriter extends Shapefile
     
     public function setShapeType($type)
     {
-        parent::setShapeType($type);
+        return parent::setShapeType($type);
     }
     
     public function setCustomBoundingBox($bounding_box)
     {
-        parent::setCustomBoundingBox($bounding_box);
+        return parent::setCustomBoundingBox($bounding_box);
     }
     
     public function resetCustomBoundingBox()
     {
-        parent::resetCustomBoundingBox();
+        return parent::resetCustomBoundingBox();
     }
     
     public function setPRJ($prj)
     {
-        parent::setPRJ($prj);
+        return parent::setPRJ($prj);
     }
     
     
@@ -346,6 +346,8 @@ class ShapefileWriter extends Shapefile
      * Writes a record to the Shapefile.
      *
      * @param   \Shapefile\Geometry\Geometry    $Geometry   Geometry to write.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function writeRecord(Geometry\Geometry $Geometry)
     {
@@ -383,14 +385,19 @@ class ShapefileWriter extends Shapefile
         if ($option_buffered_records > 0 && $this->buffered_record_count == $option_buffered_records) {
             $this->writeBuffers();
         }
+        
+        return $this;
     }
     
     /**
      * Writes buffers to files.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function flushBuffer()
     {
         $this->writeBuffers();
+        return $this;
     }
     
     
@@ -401,14 +408,19 @@ class ShapefileWriter extends Shapefile
      *
      * @param   string  $file_type      File type.
      * @param   string  $data           String value to write.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     private function bufferData($file_type, $data)
     {
         $this->buffers[$file_type] .= $data;
+        return $this;
     }
     
     /**
      * Writes buffers to files.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     private function writeBuffers()
     {
@@ -419,6 +431,7 @@ class ShapefileWriter extends Shapefile
             }
         }
         $this->buffered_record_count = 0;
+        return $this;
     }
     
     
@@ -1016,9 +1029,11 @@ class ShapefileWriter extends Shapefile
     
     
     /**
-     * Packs SHP or SHX file header.
+     * Packs SHP or SHX file header into a binary string.
      *
      * @param   int     $file_size      File size in bytes.
+     *
+     * @return  string
      */
     private function packSHPOrSHXHeader($file_size)
     {
@@ -1049,7 +1064,9 @@ class ShapefileWriter extends Shapefile
     }
     
     /**
-     * Packs DBF file header.
+     * Packs DBF file header into a binary string.
+     *
+     * @return  string
      */
     private function packDBFHeader()
     {
@@ -1097,7 +1114,9 @@ class ShapefileWriter extends Shapefile
     }
     
     /**
-     * Packs DBT file header.
+     * Packs DBT file header into a binary string.
+     *
+     * @return  string
      */
     private function packDBTHeader()
     {
@@ -1117,7 +1136,9 @@ class ShapefileWriter extends Shapefile
     
     /**
      * Computes DBF header size.
-     * 32bytes + (number of fields x 32) + 1 (field terminator character)
+     * 32bytes + (number of fields x 32) + 1 (field terminator character).
+     *
+     * @return  int
      */
     private function getDBFHeaderSize()
     {
@@ -1127,6 +1148,8 @@ class ShapefileWriter extends Shapefile
     /**
      * Computes DBF record size.
      * Sum of all fields sizes + 1 (record deleted flag).
+     *
+     * @return  int
      */
     private function getDBFRecordSize()
     {

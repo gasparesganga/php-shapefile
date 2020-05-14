@@ -77,6 +77,7 @@ class MultiLinestring extends GeometryCollection
             }
             $this->addLinestring($Linestring);
         }
+        return $this;
     }
     
     public function initFromWKT($wkt)
@@ -96,6 +97,7 @@ class MultiLinestring extends GeometryCollection
                 $this->addLinestring($Linestring);
             }
         }
+        return $this;
     }
     
     public function initFromGeoJSON($geojson)
@@ -114,6 +116,7 @@ class MultiLinestring extends GeometryCollection
                 $this->addLinestring($Linestring);
             }
         }
+        return $this;
     }
     
     
@@ -167,10 +170,13 @@ class MultiLinestring extends GeometryCollection
      * Adds a linestring to the collection.
      *
      * @param   \Shapefile\Geometry\Linestring  $Linestring
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function addLinestring(Linestring $Linestring)
     {
         $this->addGeometry($Linestring);
+        return $this;
     }
     
     /**

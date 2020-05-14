@@ -64,6 +64,7 @@ class MultiPoint extends GeometryCollection
             $Point->initFromArray($coordinates);
             $this->addPoint($Point);
         }
+        return $this;
     }
     
     public function initFromWKT($wkt)
@@ -79,6 +80,7 @@ class MultiPoint extends GeometryCollection
                 $this->addPoint($Point);
             }
         }
+        return $this;
     }
     
     public function initFromGeoJSON($geojson)
@@ -93,6 +95,7 @@ class MultiPoint extends GeometryCollection
                 $this->addPoint($Point);
             }
         }
+        return $this;
     }
     
     
@@ -138,10 +141,13 @@ class MultiPoint extends GeometryCollection
      * Adds a point to the collection.
      *
      * @param   \Shapefile\Geometry\Point   $Point
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function addPoint(Point $Point)
     {
         $this->addGeometry($Point);
+        return $this;
     }
     
     /**

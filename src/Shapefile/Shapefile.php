@@ -617,10 +617,13 @@ abstract class Shapefile
      *
      * @param   mixed   $charset    Name of the charset.
      *                              Pass a falsy value (eg. false or "") to reset it to default.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function setCharset($charset)
     {
         $this->charset = $charset ?: Shapefile::DBF_DEFAULT_CHARSET;
+        return $this;
     }
     
     
@@ -724,6 +727,8 @@ abstract class Shapefile
      *
      * @param   string|array    $files          Path to SHP file / Array of paths / Array of resource handles of individual files.
      * @param   bool            $write_access   Access type: false = read; true = write.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function openFiles($files, $write_access)
     {
@@ -799,10 +804,14 @@ abstract class Shapefile
         foreach (array_keys($this->files) as $file_type) {
             $this->setFilePointer($file_type, 0);
         }
+        
+        return $this;
     }
     
     /**
      * Closes all open resource handles.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function closeFiles()
     {
@@ -811,6 +820,7 @@ abstract class Shapefile
                 fclose($handle);
             }
         }
+        return $this;
     }
     
     /**
@@ -819,11 +829,12 @@ abstract class Shapefile
      * @param   string  $file_type  File type.
      * @param   int     $size       Optional size to truncate to.
      *
-     * @return  bool
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function fileTruncate($file_type, $size = 0)
     {
         ftruncate($this->files[$file_type], $size);
+        return $this;
     }
     
     /**
@@ -887,20 +898,26 @@ abstract class Shapefile
      *
      * @param   string  $file_type  File type (member of $this->files array).
      * @param   int     $position   The position to set the pointer to.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function setFilePointer($file_type, $position)
     {
         fseek($this->files[$file_type], $position, SEEK_SET);
+        return $this;
     }
     
     /**
      * Resets the pointer position of a resource handle to its end.
      *
      * @param   string  $file_type  File type (member of $this->files array).
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function resetFilePointer($file_type)
     {
         fseek($this->files[$file_type], 0, SEEK_END);
+        return $this;
     }
     
     /**
@@ -908,10 +925,13 @@ abstract class Shapefile
      *
      * @param   string  $file_type  File type (member of $this->files array).
      * @param   int     $offset     The offset to move the pointer for.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function setFileOffset($file_type, $offset)
     {
         fseek($this->files[$file_type], $offset, SEEK_CUR);
+        return $this;
     }
     
     /**
@@ -936,12 +956,15 @@ abstract class Shapefile
      *
      * @param   string  $file_type      File type.
      * @param   string  $data           Binary string packed data to write.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function writeData($file_type, $data)
     {
         if (@fwrite($this->files[$file_type], $data) === false) {
             throw new ShapefileException(Shapefile::ERR_FILE_WRITING);
         }
+        return $this;
     }
     
     /**
@@ -963,6 +986,8 @@ abstract class Shapefile
      *
      * @param   array   $options    Array of options to initialize.
      * @param   array   $custom     User-provided options
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function initOptions($options, $custom)
     {
@@ -997,6 +1022,8 @@ abstract class Shapefile
         if (array_key_exists($k, $this->options)) {
             $this->options[$k] = is_array($this->options[$k]) ? array_map([$this, 'normalizeDBFFieldNameCase'], $this->options[$k]) : [];
         }
+        
+        return $this;
     }
     
     /**
@@ -1016,10 +1043,13 @@ abstract class Shapefile
      *
      * @param   string  $option     Name of the option.
      * @param   mixed   $value      Value of the option.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function setOption($option, $value)
     {
         $this->options[$option] = $value;
+        return $this;
     }
     
     /**
@@ -1040,6 +1070,8 @@ abstract class Shapefile
      *                          - Shapefile::SHAPE_TYPE_POLYLINEM
      *                          - Shapefile::SHAPE_TYPE_POLYGONM
      *                          - Shapefile::SHAPE_TYPE_MULTIPOINTM
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function setShapeType($type)
     {
@@ -1050,6 +1082,7 @@ abstract class Shapefile
             throw new ShapefileException(Shapefile::ERR_SHP_TYPE_NOT_SUPPORTED, $type);
         }
         $this->shape_type = $type;
+        return $this;
     }
     
     /**
@@ -1068,10 +1101,13 @@ abstract class Shapefile
      * No check is carried out except a formal compliance of dimensions.
      *
      * @param   array   $bounding_box   Associative array with the xmin, xmax, ymin, ymax and optional zmin, zmax, mmin, mmax values.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function overwriteComputedBoundingBox($bounding_box)
     {
         $this->computed_bounding_box = $this->sanitizeBoundingBox($bounding_box);
+        return $this;
     }
     
     /**
@@ -1079,19 +1115,25 @@ abstract class Shapefile
      * No check is carried out except a formal compliance of dimensions.
      *
      * @param   array   $bounding_box   Associative array with the xmin, xmax, ymin, ymax and optional zmin, zmax, mmin, mmax values.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function setCustomBoundingBox($bounding_box)
     {
         $this->custom_bounding_box = $this->sanitizeBoundingBox($bounding_box);
+        return $this;
     }
     
     /**
      * Resets custom bounding box for the Shapefile.
      * It will cause getBoundingBox() method to return a normally computed bbox instead of a custom one.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function resetCustomBoundingBox()
     {
         $this->custom_bounding_box = null;
+        return $this;
     }
     
     
@@ -1100,21 +1142,27 @@ abstract class Shapefile
      *
      * @param   string  $prj    PRJ well-known-text.
      *                          Pass a falsy value (eg. false or "") to delete it.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function setPRJ($prj)
     {
         $this->prj = $prj ?: null;
+        return $this;
     }
     
     
     /**
      * Sets current total number of records.
      *
-     * @param   int     tot_records     Total number of records currently in the files.
+     * @param   int     $tot_records    Total number of records currently in the files.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function setTotRecords($tot_records)
     {
         $this->tot_records = $tot_records;
+        return $this;
     }
     
     /**
@@ -1131,10 +1179,13 @@ abstract class Shapefile
      * Sets the state of the initialized flag.
      *
      * @param   bool    $value
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function setFlagInitialized($value)
     {
         $this->flag_initialized = $value;
+        return $this;
     }
     
     
@@ -1238,6 +1289,8 @@ abstract class Shapefile
      * After that the Shapefile will be considered as "initialized" and no changes will be allowd to its structure.
      *
      * @param   \Shapefile\Geometry\Geometry    $Geometry   Geometry to pair with.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function pairGeometry(Geometry\Geometry $Geometry)
     {
@@ -1290,8 +1343,11 @@ abstract class Shapefile
                 }
             }
         }
+        
         // Mark Shapefile as initialized
         $this->setFlagInitialized(true);
+        
+        return $this;
     }
     
     

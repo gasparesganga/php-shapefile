@@ -110,6 +110,7 @@ class Polygon extends MultiLinestring
             }
             $this->addRing($Linestring);
         }
+        return $this;
     }
     
     
@@ -130,10 +131,13 @@ class Polygon extends MultiLinestring
      * Adds a ring to the collection.
      *
      * @param   \Shapefile\Geometry\Linestring  $Linestring
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function addRing(Linestring $Linestring)
     {
         $this->addGeometry($Linestring);
+        return $this;
     }
     
     /**
@@ -191,12 +195,15 @@ class Polygon extends MultiLinestring
     
     /**
      * Forces polygon rings to be closed.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function forceClosedRings()
     {
         foreach ($this->getRings() as $Linestring) {
             $Linestring->forceClosedRing();
         }
+        return $this;
     }
     
     
@@ -250,6 +257,8 @@ class Polygon extends MultiLinestring
     
     /**
      * Forces polygon outer ring to have a clockwise orientation and all the inner rings to have a counterclockwise one.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function forceClockwise()
     {
@@ -259,10 +268,13 @@ class Polygon extends MultiLinestring
                 $Linestring->forceCounterClockwise();
             }
         }
+        return $this;
     }
     
     /**
      * Forces polygon outer ring to have a counterclockwise orientation and all the inner rings to have a clockwise one.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function forceCounterClockwise()
     {
@@ -272,6 +284,7 @@ class Polygon extends MultiLinestring
                 $Linestring->forceClockwise();
             }
         }
+        return $this;
     }
     
     
@@ -286,6 +299,8 @@ class Polygon extends MultiLinestring
      * Performs selected action and eventually forces orientation for polygon rings.
      *
      * @param   \Shapefile\Geometry\Geometry    $Linestring
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function addGeometry(Geometry $Linestring)
     {
@@ -304,6 +319,8 @@ class Polygon extends MultiLinestring
         } elseif ($this->force_orientation == Shapefile::ORIENTATION_COUNTERCLOCKWISE) {
             $Linestring->{($this->getNumGeometries() == 1) ? 'forceCounterClockwise' : 'forceClockwise'}();
         }
+        
+        return $this;
     }
     
     

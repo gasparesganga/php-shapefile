@@ -65,6 +65,8 @@ class Linestring extends MultiPoint
     
     /**
      * Forces the linestring to be a closed ring.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function forceClosedRing()
     {
@@ -74,6 +76,7 @@ class Linestring extends MultiPoint
         if (!$this->isClosedRing()) {
             $this->addPoint($this->getPoint(0));
         }
+        return $this;
     }
     
     
@@ -112,23 +115,29 @@ class Linestring extends MultiPoint
     /**
      * Forces the ring to be in clockwise direction (it works with open rings too).
      * Throws and exception if direction is undefined.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function forceClockwise()
     {
         if ($this->isClockwise(true) === false) {
             $this->reverseGeometries();
         }
+        return $this;
     }
     
     /**
      * Forces the ring to be in clockwise direction (it works with open rings too).
      * Throws and exception if direction is undefined.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function forceCounterClockwise()
     {
         if ($this->isClockwise(true) === true) {
             $this->reverseGeometries();
         }
+        return $this;
     }
     
     

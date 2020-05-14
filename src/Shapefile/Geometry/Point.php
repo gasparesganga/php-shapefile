@@ -87,6 +87,7 @@ class Point extends Geometry
             isset($array['z']) ? $array['z'] : null,
             isset($array['m']) ? $array['m'] : null
         );
+        return $this;
     }
     
     public function initFromWKT($wkt)
@@ -101,6 +102,7 @@ class Point extends Geometry
             );
             $this->init($coordinates['x'], $coordinates['y'], $coordinates['z'], $coordinates['m']);
         }
+        return $this;
     }
     
     public function initFromGeoJSON($geojson)
@@ -111,6 +113,7 @@ class Point extends Geometry
             $coordinates = $this->geojsonParseCoordinates($geojson['coordinates'], $this->geojsonIsM($geojson['type']));
             $this->init($coordinates['x'], $coordinates['y'], $coordinates['z'], $coordinates['m']);
         }
+        return $this;
     }
     
     
@@ -268,6 +271,8 @@ class Point extends Geometry
      * @param   float       $y      Y coordinate
      * @param   float       $z      Z coordinate
      * @param   float|bool  $m      M coordinate
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     private function init($x = null, $y = null, $z = null, $m = null)
     {
@@ -287,6 +292,7 @@ class Point extends Geometry
                 $this->setFlagM(true);
             }
         }
+        return $this;
     }
     
     /**

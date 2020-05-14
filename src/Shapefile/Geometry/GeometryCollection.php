@@ -111,6 +111,8 @@ abstract class GeometryCollection extends Geometry
      * It enforces all geometries to be of the same type.
      *
      * @param   \Shapefile\Geometry\Geometry    $Geometry
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function addGeometry(Geometry $Geometry)
     {
@@ -129,6 +131,7 @@ abstract class GeometryCollection extends Geometry
             }
             $this->geometries[] = $Geometry;
         }
+        return $this;
     }
     
     /**
@@ -168,9 +171,12 @@ abstract class GeometryCollection extends Geometry
     
     /**
      * Reverses the order of geometries in the collection.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function reverseGeometries()
     {
         $this->geometries = array_reverse($this->geometries);
+        return $this;
     }
 }

@@ -124,6 +124,7 @@ class MultiPolygon extends GeometryCollection
             }
             $this->addGeometry($Polygon, false);
         }
+        return $this;
     }
     
     public function initFromWKT($wkt)
@@ -147,6 +148,7 @@ class MultiPolygon extends GeometryCollection
                 $this->addGeometry($Polygon, false);
             }
         }
+        return $this;
     }
     
     public function initFromGeoJSON($geojson)
@@ -169,6 +171,7 @@ class MultiPolygon extends GeometryCollection
                 $this->addGeometry($Polygon, false);
             }
         }
+        return $this;
     }
     
     
@@ -230,10 +233,13 @@ class MultiPolygon extends GeometryCollection
      * Adds a polygon to the collection.
      *
      * @param   \Shapefile\Geometry\Polygon     $Polygon
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function addPolygon(Polygon $Polygon)
     {
         $this->addGeometry($Polygon, true);
+        return $this;
     }
     
     /**
@@ -271,12 +277,15 @@ class MultiPolygon extends GeometryCollection
     
     /**
      * Forces multipolygon rings to be closed.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function forceClosedRings()
     {
         foreach ($this->getPolygons() as $Polygon) {
             $Polygon->forceClosedRings();
         }
+        return $this;
     }
     
     
@@ -338,6 +347,8 @@ class MultiPolygon extends GeometryCollection
     
     /**
      * Forces all multipolygon outer rings to have a clockwise orientation and all the inner rings to have a counterclockwise one.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function forceClockwise()
     {
@@ -347,10 +358,13 @@ class MultiPolygon extends GeometryCollection
                 $Linestring->forceCounterClockwise();
             }
         }
+        return $this;
     }
     
     /**
      * Forces all multipolygon outer rings to have a counterclockwise orientation and all the inner rings to have a clockwise one.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     public function forceCounterClockwise()
     {
@@ -360,6 +374,7 @@ class MultiPolygon extends GeometryCollection
                 $Linestring->forceClockwise();
             }
         }
+        return $this;
     }
     
     
@@ -375,6 +390,8 @@ class MultiPolygon extends GeometryCollection
      *
      * @param   \Shapefile\Geometry\Geometry    $Polygon
      * @param   bool                            $flag_rings_and_orientation     Optionally enforce class action and orientation for rings.
+     *
+     * @return  self    Returns $this to provide a fluent interface.
      */
     protected function addGeometry(Geometry $Polygon, $flag_rings_and_orientation = true)
     {
@@ -396,6 +413,8 @@ class MultiPolygon extends GeometryCollection
                 }
             }
         }
+        
+        return $this;
     }
     
     
