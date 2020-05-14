@@ -166,7 +166,7 @@ class MultiLinestring extends GeometryCollection
     /**
      * Adds a linestring to the collection.
      *
-     * @param   Linestring  $Linestring
+     * @param   \Shapefile\Geometry\Linestring  $Linestring
      */
     public function addLinestring(Linestring $Linestring)
     {
@@ -178,7 +178,7 @@ class MultiLinestring extends GeometryCollection
      *
      * @param   int     $index  The index of the linestring.
      *
-     * @return  Linestring
+     * @return  \Shapefile\Geometry\Linestring
      */
     public function getLinestring($index)
     {
@@ -188,7 +188,7 @@ class MultiLinestring extends GeometryCollection
     /**
      * Gets all the linestrings in the collection.
      *
-     * @return  Linestring[]
+     * @return  \Shapefile\Geometry\Linestring[]
      */
     public function getLinestrings()
     {

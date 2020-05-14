@@ -74,15 +74,15 @@ class Polygon extends MultiLinestring
     /**
      * Constructor.
      *
-     * @param   Linestring[]    $linestrings        Optional array of linestrings to initialize the polygon.
-     * @param   int             $closed_rings       Optional action to perform on polygon rings. Possible values:
-     *                                                  - Shapefile::ACTION_IGNORE
-     *                                                  - Shapefile::ACTION_CHECK
-     *                                                  - Shapefile::ACTION_FORCE
-     * @param   int             $force_orientation  Optional orientation to force for polygon rings. Possible values:
-     *                                                  - Shapefile::ORIENTATION_CLOCKWISE
-     *                                                  - Shapefile::ORIENTATION_COUNTERCLOCKWISE
-     *                                                  - Shapefile::ORIENTATION_UNCHANGED
+     * @param   \Shapefile\Geometry\Linestring[]    $linestrings        Optional array of linestrings to initialize the polygon.
+     * @param   int                                 $closed_rings       Optional action to perform on polygon rings. Possible values:
+     *                                                                      - Shapefile::ACTION_IGNORE
+     *                                                                      - Shapefile::ACTION_CHECK
+     *                                                                      - Shapefile::ACTION_FORCE
+     * @param   int                                 $force_orientation  Optional orientation to force for polygon rings. Possible values:
+     *                                                                      - Shapefile::ORIENTATION_CLOCKWISE
+     *                                                                      - Shapefile::ORIENTATION_COUNTERCLOCKWISE
+     *                                                                      - Shapefile::ORIENTATION_UNCHANGED
      */
     public function __construct(array $linestrings = null, $closed_rings = Shapefile::ACTION_CHECK, $force_orientation = Shapefile::ORIENTATION_COUNTERCLOCKWISE)
     {
@@ -129,7 +129,7 @@ class Polygon extends MultiLinestring
     /**
      * Adds a ring to the collection.
      *
-     * @param   Linestring  $Linestring
+     * @param   \Shapefile\Geometry\Linestring  $Linestring
      */
     public function addRing(Linestring $Linestring)
     {
@@ -141,7 +141,7 @@ class Polygon extends MultiLinestring
      *
      * @param   int     $index      The index of the ring.
      *
-     * @return  Linestring
+     * @return  \Shapefile\Geometry\Linestring
      */
     public function getRing($index)
     {
@@ -151,7 +151,7 @@ class Polygon extends MultiLinestring
     /**
      * Gets all the rings in the collection.
      *
-     * @return  Linestring[]
+     * @return  \Shapefile\Geometry\Linestring[]
      */
     public function getRings()
     {
@@ -171,7 +171,7 @@ class Polygon extends MultiLinestring
     /**
      * Gets the polygon outer ring.
      *
-     * @return  Linestring
+     * @return  \Shapefile\Geometry\Linestring
      */
     public function getOuterRing()
     {
@@ -181,7 +181,7 @@ class Polygon extends MultiLinestring
     /**
      * Gets polygon inners rings.
      *
-     * @return  Linestring[]
+     * @return  \Shapefile\Geometry\Linestring[]
      */
     public function getInnerRings()
     {
@@ -285,7 +285,7 @@ class Polygon extends MultiLinestring
     /**
      * Performs selected action and eventually forces orientation for polygon rings.
      *
-     * @param   Geometry    $Linestring
+     * @param   \Shapefile\Geometry\Geometry    $Linestring
      */
     protected function addGeometry(Geometry $Linestring)
     {

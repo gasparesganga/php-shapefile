@@ -1237,7 +1237,7 @@ abstract class Shapefile
      * It enforces the Geometry type and computes Shapefile bounding box.
      * After that the Shapefile will be considered as "initialized" and no changes will be allowd to its structure.
      *
-     * @param   Geometry    $Geometry     Geometry to pair with.
+     * @param   \Shapefile\Geometry\Geometry    $Geometry   Geometry to pair with.
      */
     protected function pairGeometry(Geometry\Geometry $Geometry)
     {

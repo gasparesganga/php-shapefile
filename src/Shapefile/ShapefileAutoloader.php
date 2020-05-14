@@ -18,7 +18,7 @@ namespace Shapefile;
 class ShapefileAutoloader
 {
     /**
-     * Register the actual autoloader.
+     * Registers the actual autoloader.
      */
     public static function register()
     {

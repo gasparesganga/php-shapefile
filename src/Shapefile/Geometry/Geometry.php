@@ -98,7 +98,7 @@ abstract class Geometry
      *
      * @return  string
      */
-    abstract public function getGeoJSON($flag_bbox, $flag_feature);
+    abstract public function getGeoJSON($flag_bbox = true, $flag_feature = false);
     
     /**
      * Gets Geometry bounding box.

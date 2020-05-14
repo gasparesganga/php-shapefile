@@ -209,7 +209,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Gets current record and moves the cursor to the next one.
      *
-     * @return  Geometry
+     * @return  \Shapefile\Geometry\Geometry
      */
     public function fetchRecord()
     {
@@ -393,7 +393,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads current record in both SHP and DBF files and returns a Geometry.
      *
-     * @return  Geometry
+     * @return  \Shapefile\Geometry\Geometry
      */
     private function readCurrentRecord()
     {
@@ -593,7 +593,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Returns an empty Geometry depending on the base type of the Shapefile.
      *
-     * @return  Geometry
+     * @return  \Shapefile\Geometry\Geometry
      */
     private function readNull()
     {
@@ -616,7 +616,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads a Point from the SHP file.
      *
-     * @return  Point
+     * @return  \Shapefile\Geometry\Point
      */
     private function readPoint()
     {
@@ -626,7 +626,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads a PointM from the SHP file.
      *
-     * @return  Point
+     * @return  \Shapefile\Geometry\Point
      */
     private function readPointM()
     {
@@ -636,7 +636,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads a PointZ from the SHP file.
      *
-     * @return  Point
+     * @return  \Shapefile\Geometry\Point
      */
     private function readPointZ()
     {
@@ -648,7 +648,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      *
      * @param   array   $data   Array with "x", "y" and optional "z" and "m" values.
      *
-     * @return  Point
+     * @return  \Shapefile\Geometry\Point
      */
     private function createPoint($data)
     {
@@ -663,7 +663,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      *
      * @param   bool    $flag_return_geometry   Flag to control return type.
      *
-     * @return  MultiPoint|array
+     * @return  \Shapefile\Geometry\MultiPoint|array
      */
     private function readMultiPoint($flag_return_geometry = true)
     {
@@ -686,7 +686,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads a MultiPointM from the SHP file.
      *
-     * @return  MultiPoint
+     * @return  \Shapefile\Geometry\MultiPoint
      */
     private function readMultiPointM()
     {
@@ -706,7 +706,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads a MultiPointZ from the SHP file.
      *
-     * @return  MultiPoint
+     * @return  \Shapefile\Geometry\MultiPoint
      */
     private function readMultiPointZ()
     {
@@ -735,7 +735,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      *
      * @param   array   $data   Array with "bbox" and "geometry" values.
      *
-     * @return  MultiPoint
+     * @return  \Shapefile\Geometry\MultiPoint
      */
     private function createMultiPoint($data)
     {
@@ -753,7 +753,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      *
      * @param   bool    $flag_return_geometry   Flag to control return type.
      *
-     * @return  Linestring|MultiLinestring|array
+     * @return  \Shapefile\Geometry\Linestring|\Shapefile\Geometry\MultiLinestring|array
      */
     private function readPolyLine($flag_return_geometry = true)
     {
@@ -795,7 +795,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      *
      * @param   bool    $flag_return_geometry   Flag to control return type.
      *
-     * @return  Linestring|MultiLinestring|array
+     * @return  \Shapefile\Geometry\Linestring|\Shapefile\Geometry\MultiLinestring|array
      */
     private function readPolyLineM($flag_return_geometry = true)
     {
@@ -819,7 +819,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      *
      * @param   bool    $flag_return_geometry   Flag to control return type.
      *
-     * @return  Linestring|MultiLinestring|array
+     * @return  \Shapefile\Geometry\Linestring|\Shapefile\Geometry\MultiLinestring|array
      */
     private function readPolyLineZ($flag_return_geometry = true)
     {
@@ -853,7 +853,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      *
      * @param   array   $data   Array with "bbox" and "geometry" values.
      *
-     * @return  Linestring|MultiLinestring
+     * @return  \Shapefile\Geometry\Linestring|\Shapefile\Geometry\MultiLinestring
      */
     private function createLinestring($data)
     {
@@ -874,7 +874,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads a Polygon from the SHP file.
      *
-     * @return  Polygon|MultiPolygon
+     * @return  \Shapefile\Geometry\Polygon|\Shapefile\Geometry\MultiPolygon
      */
     private function readPolygon()
     {
@@ -884,7 +884,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads a PolygonM from the SHP file.
      *
-     * @return  Polygon|MultiPolygon
+     * @return  \Shapefile\Geometry\Polygon|\Shapefile\Geometry\MultiPolygon
      */
     private function readPolygonM()
     {
@@ -894,7 +894,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Reads a PolygonZ from the SHP file.
      *
-     * @return  Polygon|MultiPolygon
+     * @return  \Shapefile\Geometry\Polygon|\Shapefile\Geometry\MultiPolygon
      */
     private function readPolygonZ()
     {
@@ -907,7 +907,7 @@ class ShapefileReader extends Shapefile implements \Iterator
      *
      * @param   array   $data   Array with "bbox" and "geometry" values.
      *
-     * @return  Polygon|MultiPolygon
+     * @return  \Shapefile\Geometry\Polygon|\Shapefile\Geometry\MultiPolygon
      */
     private function createPolygon($data)
     {

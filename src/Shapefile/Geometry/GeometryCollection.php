@@ -22,8 +22,8 @@ use Shapefile\ShapefileException;
 abstract class GeometryCollection extends Geometry
 {
     /**
-     * @var Geometry[]      The actual geometries in the collection.
-     *                      They are enforced to be all of the same type by addGeometry() method.
+     * @var \Shapefile\Geometry\Geometry[]  The actual geometries in the collection.
+     *                                      They are enforced to be all of the same type by addGeometry() method.
      */
     protected $geometries = [];
     
@@ -43,7 +43,7 @@ abstract class GeometryCollection extends Geometry
     /**
      * Constructor.
      *
-     * @param   Geometry[]      $geometries     Optional array of geometries to initialize the collection.
+     * @param   \Shapefile\Geometry\Geometry[]  $geometries     Optional array of geometries to initialize the collection.
      */
     public function __construct(array $geometries = null)
     {
@@ -110,7 +110,7 @@ abstract class GeometryCollection extends Geometry
      * Adds a Geometry to the collection.
      * It enforces all geometries to be of the same type.
      *
-     * @param   Geometry    $Geometry
+     * @param   \Shapefile\Geometry\Geometry    $Geometry
      */
     protected function addGeometry(Geometry $Geometry)
     {
@@ -136,7 +136,7 @@ abstract class GeometryCollection extends Geometry
      *
      * @param   int     $index      The index of the Geometry.
      *
-     * @return  Geometry
+     * @return  \Shapefile\Geometry\Geometry
      */
     protected function getGeometry($index)
     {
@@ -149,7 +149,7 @@ abstract class GeometryCollection extends Geometry
     /**
      * Gets all the geometries in the collection.
      *
-     * @return  Geometry[]
+     * @return  \Shapefile\Geometry\Geometry[]
      */
     protected function getGeometries()
     {

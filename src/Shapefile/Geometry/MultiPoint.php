@@ -137,7 +137,7 @@ class MultiPoint extends GeometryCollection
     /**
      * Adds a point to the collection.
      *
-     * @param   Point   $Point
+     * @param   \Shapefile\Geometry\Point   $Point
      */
     public function addPoint(Point $Point)
     {
@@ -149,7 +149,7 @@ class MultiPoint extends GeometryCollection
      *
      * @param   int     $index      The index of the point.
      *
-     * @return  Point
+     * @return  \Shapefile\Geometry\Point
      */
     public function getPoint($index)
     {
@@ -159,7 +159,7 @@ class MultiPoint extends GeometryCollection
     /**
      * Gets all the points in the collection.
      *
-     * @return  Point[]
+     * @return  \Shapefile\Geometry\Point[]
      */
     public function getPoints()
     {

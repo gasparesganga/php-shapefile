@@ -342,7 +342,7 @@ class ShapefileWriter extends Shapefile
     /*
      * Writes a record to the Shapefile.
      *
-     * @param   Geometry    $Geometry       Geometry to write.
+     * @param   \Shapefile\Geometry\Geometry    $Geometry   Geometry to write.
      */
     public function writeRecord(Geometry\Geometry $Geometry)
     {
@@ -613,7 +613,7 @@ class ShapefileWriter extends Shapefile
     /**
      * Packs a Point, PointM or PointZ shape into binary string.
      *
-     * @param   Geometry    $Geometry   Geometry to pack.
+     * @param   \Shapefile\Geometry\Geometry    $Geometry   Geometry to pack.
      *
      * @return  string
      */
@@ -646,7 +646,7 @@ class ShapefileWriter extends Shapefile
     /**
      * Packs a MultiPoint, MultiPointM or MultiPointZ shape into binary string.
      *
-     * @param   Geometry    $Geometry   Geometry to pack.
+     * @param   \Shapefile\Geometry\Geometry    $Geometry   Geometry to pack.
      *
      * @return  string
      */
@@ -693,8 +693,8 @@ class ShapefileWriter extends Shapefile
     /**
      * Packs a PolyLine, PolyLineM or PolyLineZ shape into binary string.
      *
-     * @param   Geometry    $Geometry       Geometry to pack.
-     * @param   bool        $flag_polygon   Optional flag to pack Polygon shapes.
+     * @param   \Shapefile\Geometry\Geometry    $Geometry       Geometry to pack.
+     * @param   bool                            $flag_polygon   Optional flag to pack Polygon shapes.
      *
      * @return  string
      */
@@ -782,7 +782,7 @@ class ShapefileWriter extends Shapefile
      * Packs a Polygon, PolygonM or PolygonZ shape into binary string.
      * It forces closed rings and clockwise orientation in order to comply with ESRI Shapefile specifications.
      *
-     * @param   Geometry    $Geometry   Geometry to pack.
+     * @param   \Shapefile\Geometry\Geometry    $Geometry   Geometry to pack.
      *
      * @return  string
      */
@@ -797,7 +797,7 @@ class ShapefileWriter extends Shapefile
     /*
      * Packs SHP and SHX data from a Geometry object into binary strings and returns an array with SHP, SHX and "shp_current_offset" members.
      *
-     * @param   Geometry    $Geometry   Input Geometry.
+     * @param   \Shapefile\Geometry\Geometry    $Geometry   Input Geometry.
      *
      * @return  array
      */
@@ -823,7 +823,7 @@ class ShapefileWriter extends Shapefile
     /*
      * Packs DBF and DBT data from a Geometry object into binary strings and returns an array with SHP, DBT and "dbt_next_available_block" members.
      *
-     * @param   Geometry    $Geometry   Input Geometry.
+     * @param   \Shapefile\Geometry\Geometry    $Geometry   Input Geometry.
      *
      * @return  array
      */

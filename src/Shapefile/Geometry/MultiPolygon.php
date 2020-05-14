@@ -81,15 +81,15 @@ class MultiPolygon extends GeometryCollection
     /**
      * Constructor.
      *
-     * @param   Polygon[]   $polygons           Optional array of polygons to initialize the multipolygon.
-     * @param   int         $closed_rings       Optional action to perform on polygons rings. Possible values:
-     *                                              - Shapefile::ACTION_IGNORE
-     *                                              - Shapefile::ACTION_CHECK
-     *                                              - Shapefile::ACTION_FORCE
-     * @param   int         $force_orientation  Optional orientation to force for polygons rings. Possible values:
-     *                                              - Shapefile::ORIENTATION_CLOCKWISE
-     *                                              - Shapefile::ORIENTATION_COUNTERCLOCKWISE
-     *                                              - Shapefile::ORIENTATION_UNCHANGED
+     * @param   \Shapefile\Geometry\Polygon[]   $polygons           Optional array of polygons to initialize the multipolygon.
+     * @param   int                             $closed_rings       Optional action to perform on polygons rings. Possible values:
+     *                                                                  - Shapefile::ACTION_IGNORE
+     *                                                                  - Shapefile::ACTION_CHECK
+     *                                                                  - Shapefile::ACTION_FORCE
+     * @param   int                             $force_orientation  Optional orientation to force for polygons rings. Possible values:
+     *                                                                  - Shapefile::ORIENTATION_CLOCKWISE
+     *                                                                  - Shapefile::ORIENTATION_COUNTERCLOCKWISE
+     *                                                                  - Shapefile::ORIENTATION_UNCHANGED
      */
     public function __construct(array $polygons = null, $closed_rings = Shapefile::ACTION_CHECK, $force_orientation = Shapefile::ORIENTATION_COUNTERCLOCKWISE)
     {
@@ -229,7 +229,7 @@ class MultiPolygon extends GeometryCollection
     /**
      * Adds a polygon to the collection.
      *
-     * @param   Polygon     $Polygon
+     * @param   \Shapefile\Geometry\Polygon     $Polygon
      */
     public function addPolygon(Polygon $Polygon)
     {
@@ -241,7 +241,7 @@ class MultiPolygon extends GeometryCollection
      *
      * @param   int     $index      The index of the polygon.
      *
-     * @return  Polygon
+     * @return  \Shapefile\Geometry\Polygon
      */
     public function getPolygon($index)
     {
@@ -251,7 +251,7 @@ class MultiPolygon extends GeometryCollection
     /**
      * Gets all the polygons in the collection.
      *
-     * @return  Polygon[]
+     * @return  \Shapefile\Geometry\Polygon[]
      */
     public function getPolygons()
     {
@@ -373,8 +373,8 @@ class MultiPolygon extends GeometryCollection
     /**
      * Enforces class-wide action and orientation for polygons rings.
      *
-     * @param   Geometry    $Polygon
-     * @param   bool        $flag_rings_and_orientation     Optionally enforce class action and orientation for rings.
+     * @param   \Shapefile\Geometry\Geometry    $Polygon
+     * @param   bool                            $flag_rings_and_orientation     Optionally enforce class action and orientation for rings.
      */
     protected function addGeometry(Geometry $Polygon, $flag_rings_and_orientation = true)
     {
