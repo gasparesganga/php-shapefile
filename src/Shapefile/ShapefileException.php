@@ -13,7 +13,7 @@
 namespace Shapefile;
 
 /**
- * Exception throw by PHP Shapefile library.
+ * Exception thrown by this library.
  */
 class ShapefileException extends \Exception
 {

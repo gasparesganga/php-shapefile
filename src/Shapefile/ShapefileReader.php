@@ -19,6 +19,9 @@ use Shapefile\Geometry\MultiLinestring;
 use Shapefile\Geometry\Polygon;
 use Shapefile\Geometry\MultiPolygon;
 
+/**
+ * ShapefileReader class.
+ */
 class ShapefileReader extends Shapefile implements \Iterator
 {
     /** SHP read methods hash */
@@ -530,6 +533,8 @@ class ShapefileReader extends Shapefile implements \Iterator
     /**
      * Parses an M coordinate according to the ESRI specs:
      * «Any floating point number smaller than –10^38 is considered by a shapefile reader to represent a "no data" value»
+     *
+     * @param   float   $value  Value to parse.
      *
      * @return  float|bool
      */

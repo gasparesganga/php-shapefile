@@ -12,6 +12,9 @@
 
 namespace Shapefile;
 
+/**
+ * ShapefileWriter class.
+ */
 class ShapefileWriter extends Shapefile
 {
     /** SHP pack methods hash */
@@ -339,7 +342,7 @@ class ShapefileWriter extends Shapefile
     }
     
     
-    /*
+    /**
      * Writes a record to the Shapefile.
      *
      * @param   \Shapefile\Geometry\Geometry    $Geometry   Geometry to write.
@@ -548,8 +551,11 @@ class ShapefileWriter extends Shapefile
     /**
      * Parses an M coordinate according to the ESRI specs:
      * «Any floating point number smaller than –10^38 is considered by a shapefile reader to represent a "no data" value»
+     * This library uses bool value false to represent "no data".
      *
-     * @return  float|bool
+     * @param   float|bool  $value  Value to parse.
+     *
+     * @return  float
      */
     private function parseM($value)
     {
@@ -794,7 +800,7 @@ class ShapefileWriter extends Shapefile
     }
     
     
-    /*
+    /**
      * Packs SHP and SHX data from a Geometry object into binary strings and returns an array with SHP, SHX and "shp_current_offset" members.
      *
      * @param   \Shapefile\Geometry\Geometry    $Geometry   Input Geometry.
@@ -820,7 +826,7 @@ class ShapefileWriter extends Shapefile
         ];
     }
     
-    /*
+    /**
      * Packs DBF and DBT data from a Geometry object into binary strings and returns an array with SHP, DBT and "dbt_next_available_block" members.
      *
      * @param   \Shapefile\Geometry\Geometry    $Geometry   Input Geometry.
@@ -869,7 +875,7 @@ class ShapefileWriter extends Shapefile
         return $ret;
     }
     
-    /*
+    /**
      * Packs DBT data into a binary string and return an array with "blocks" and "data" members.
      *
      * @param   string  $data           Data to write
