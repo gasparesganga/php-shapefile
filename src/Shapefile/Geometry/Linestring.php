@@ -35,7 +35,7 @@ use Shapefile\ShapefileException;
  *
  *  - GeoJSON:
  *      {
- *          "type": "Linestring" / "LinestringM"
+ *          "type": "LineString" / "LineStringM"
  *          "coordinates": [
  *              [x, y, z] / [x, y, m] / [x, y, z, m]
  *          ]
@@ -83,10 +83,10 @@ class Linestring extends MultiPoint
     /**
      * Checks whether a ring is clockwise or not (it works with open rings too).
      *
-     * Throws and exception if ring area is too small and cannot determine its orientation.
-     * Returns Shapefile::UNDEFINED or throw and exception if there are not enough points.
+     * Throws an exception if ring area is too small and cannot determine its orientation.
+     * Returns Shapefile::UNDEFINED or throw an exception if there are not enough points.
      *
-     * @param   bool    $flag_throw_exception   Optional flag to throw and exception if there are not enough points.
+     * @param   bool    $flag_throw_exception   Optional flag to throw an exception if there are not enough points.
      *
      * @return  bool|Shapefile::UNDEFINED
      */
@@ -114,7 +114,7 @@ class Linestring extends MultiPoint
     
     /**
      * Forces the ring to be in clockwise direction (it works with open rings too).
-     * Throws and exception if direction is undefined.
+     * Throws an exception if direction is undefined.
      *
      * @return  self    Returns $this to provide a fluent interface.
      */
@@ -127,8 +127,8 @@ class Linestring extends MultiPoint
     }
     
     /**
-     * Forces the ring to be in clockwise direction (it works with open rings too).
-     * Throws and exception if direction is undefined.
+     * Forces the ring to be in counterclockwise direction (it works with open rings too).
+     * Throws an exception if direction is undefined.
      *
      * @return  self    Returns $this to provide a fluent interface.
      */

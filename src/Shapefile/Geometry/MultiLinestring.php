@@ -40,7 +40,7 @@ use Shapefile\ShapefileException;
  *
  *  - GeoJSON:
  *      {
- *          "type": "MultiLinestring" / "MultiLinestringM"
+ *          "type": "MultiLineString" / "MultiLineStringM"
  *          "coordinates": [
  *              [
  *                  [x, y, z] / [x, y, m] / [x, y, z, m]

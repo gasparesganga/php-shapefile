@@ -330,7 +330,7 @@ abstract class Geometry
     
     
     /**
-     * Checks if the Geometry has been initialized (it is not empty) and if YES throws and exception.
+     * Checks if the Geometry has been initialized (it is not empty) and if YES throws an exception.
      *
      * @return  self    Returns $this to provide a fluent interface.
      */
