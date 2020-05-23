@@ -5,6 +5,60 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## v3.3.0 - 2020-05-23
+### Added
+- `Shapefile\Geometry\Linestring` public methods:
+    - `Shapefile\Geometry\Linestring::isClockwise()`
+    - `Shapefile\Geometry\Linestring::forceClockwise()`
+    - `Shapefile\Geometry\Linestring::forceCounterClockwise()`
+    - `Shapefile\Geometry\Linestring::forceClosedRing()`
+- `Shapefile\Geometry\Polygon` public methods:
+    - `Shapefile\Geometry\Polygon::isClockwise()`
+    - `Shapefile\Geometry\Polygon::isCounterClockwise()`
+    - `Shapefile\Geometry\Polygon::forceClockwise()`
+    - `Shapefile\Geometry\Polygon::forceCounterClockwise()`
+    - `Shapefile\Geometry\Polygon::forceClosedRings()`
+- `Shapefile\Geometry\MultiPolygon` public methods:
+    - `Shapefile\Geometry\MultiPolygon::isClockwise()`
+    - `Shapefile\Geometry\MultiPolygon::isCounterClockwise()`
+    - `Shapefile\Geometry\MultiPolygon::forceClockwise()`
+    - `Shapefile\Geometry\MultiPolygon::forceCounterClockwise()`
+    - `Shapefile\Geometry\MultiPolygon::forceClosedRings()`
+- `Shapefile\Geometry\GeometryCollection::reverseGeometries()` protected method.
+- `Shapefile\Geometry\Polygon` and `Shapefile\Geometry\MultiPolygon` optional constructor parameter `$force_orientation`.
+- `Shapefile\ShapefileReader` constructor options:
+    - `Shapefile::OPTION_POLYGON_CLOSED_RINGS_ACTION`
+    - `Shapefile::OPTION_POLYGON_ORIENTATION_READING_AUTOSENSE`
+    - `Shapefile::OPTION_POLYGON_OUTPUT_ORIENTATION`
+- Action constants:
+    - `Shapefile::ACTION_IGNORE`
+    - `Shapefile::ACTION_CHECK`
+    - `Shapefile::ACTION_FORCE`
+ - Polygon orientation constants:
+    - `Shapefile::ORIENTATION_CLOCKWISE`
+    - `Shapefile::ORIENTATION_COUNTERCLOCKWISE`
+    - `Shapefile::ORIENTATION_UNCHANGED`
+- Error types constants:
+    - `Shapefile::ERR_GEOM_RING_AREA_TOO_SMALL`
+    - `Shapefile::ERR_GEOM_RING_NOT_ENOUGH_VERTICES`
+- Other constants:
+    - `Shapefile::UNDEFINED`
+- Library implements a *fluent interface* that allows method chaining.
+
+### Changed
+- `Shapefile\Geometry\Polygon` and `Shapefile\Geometry\MultiPolygon` constructor parameter `$flag_enforce_closed_rings` is now `$closed_rings` and accepts `Shapefile::ACTION_IGNORE`, `Shapefile::ACTION_CHECK` and `Shapefile::ACTION_FORCE` values.
+- Code is now PSR-12 compliant
+
+### Deprecated
+- `Shapefile\ShapefileReader` constructor options that will disappear in the next releases:
+    - `Shapefile::OPTION_ENFORCE_POLYGON_CLOSED_RINGS`. Use `Shapefile::OPTION_POLYGON_CLOSED_RINGS_ACTION` instead.
+    - `Shapefile::OPTION_INVERT_POLYGONS_ORIENTATION`. Use `Shapefile::OPTION_POLYGON_OUTPUT_ORIENTATION` instead.
+- Constants:
+    - `Shapefile::ERR_GEOM_POLYGON_AREA_TOO_SMALL`. Use `Shapefile::ERR_GEOM_RING_AREA_TOO_SMALL` instead.
+    - `Shapefile::ERR_GEOM_POLYGON_NOT_VALID`. Use `Shapefile::ERR_GEOM_POLYGON_WRONG_ORIENTATION` instead.
+
+
+
 ## v3.2.0 - 2020-04-09
 ### Added
 - `Shapefile::OPTION_DBF_ALLOW_FIELD_SIZE_255` constructor option for both `ShapefileReader` and `ShapefileWriter` classes
@@ -250,7 +304,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Protected method `init()` allows the main `ShapeFile` class to be easily extended using a custom constructor
 
 ### Fixed
-- Some minor code abbelishments to better comply to PSR-2
+- Some minor code embellishments to better comply to PSR-2
 
 
 
