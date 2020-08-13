@@ -965,7 +965,7 @@ class ShapefileWriter extends Shapefile
             case Shapefile::DBF_TYPE_LOGICAL:
                 if ($value === null) {
                     $value = Shapefile::DBF_VALUE_NULL;
-                } elseif ($value === true || strpos(Shapefile::DBF_VALUE_MASK_TRUE, substr(trim($value), 0, 1)) !== false) {
+                } elseif ($value === true || (strlen(trim($value)) > 0 && strpos(Shapefile::DBF_VALUE_MASK_TRUE, substr(trim($value), 0, 1)) !== false)) {
                     $value = Shapefile::DBF_VALUE_TRUE;
                 } else {
                     $value = Shapefile::DBF_VALUE_FALSE;
