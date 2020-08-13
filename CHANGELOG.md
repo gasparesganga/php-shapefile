@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## v3.3.1 - 2020-08-13
+### Fixed
+- Prevented a PHP warning when encoding a boolean `false` value for a `Shapefile::DBF_TYPE_LOGICAL` field
+
+
+
 ## v3.3.0 - 2020-05-23
 ### Added
 - `Shapefile\Geometry\Linestring` public methods:
