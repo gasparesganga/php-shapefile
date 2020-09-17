@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## v3.3.3 - 2020-09-17
+### Fixed
+- Bug in ShapefileWriter::packPoint() method affecting *Z* and *M* geometries
+
+
+
 ## v3.3.2 - 2020-08-17
 ### Fixed
 - Removed duplicated doc block header from `ShapefileWriter.php` file
