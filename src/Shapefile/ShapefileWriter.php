@@ -651,12 +651,12 @@ class ShapefileWriter extends Shapefile
         
         if ($is_z) {
             // Z Coordinate
-            $ret .= $this->packZ($coordinates);
+            $ret .= $this->packZ($array);
         }
         
         if ($is_m) {
             // M Coordinate
-            $ret .= $this->packM($coordinates);
+            $ret .= $this->packM($array);
         }
         
         return $ret;
