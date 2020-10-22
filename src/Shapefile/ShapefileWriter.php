@@ -585,10 +585,10 @@ class ShapefileWriter extends Shapefile
      */
     private function packXYBoundingBox($bounding_box)
     {
-        return $this->packDoubleL($bounding_box['xmin'])
-             . $this->packDoubleL($bounding_box['ymin'])
-             . $this->packDoubleL($bounding_box['xmax'])
-             . $this->packDoubleL($bounding_box['ymax']);
+        return $this->packDoubleL(@$bounding_box['xmin'])
+             . $this->packDoubleL(@$bounding_box['ymin'])
+             . $this->packDoubleL(@$bounding_box['xmax'])
+             . $this->packDoubleL(@$bounding_box['ymax']);
     }
     
     /**
