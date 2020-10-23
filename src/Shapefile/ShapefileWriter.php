@@ -638,11 +638,10 @@ class ShapefileWriter extends Shapefile
      */
     private function packPoint(Geometry\Geometry $Geometry)
     {
-        $array          = $Geometry->getArray();
-        $bounding_box   = $Geometry->getBoundingBox();
-        $is_m           = $this->isM();
-        $is_z           = $this->isZ();
-        $shape_type     = $is_z ? Shapefile::SHAPE_TYPE_POINTZ : ($is_m ? Shapefile::SHAPE_TYPE_POINTM : Shapefile::SHAPE_TYPE_POINT);
+        $array      = $Geometry->getArray();
+        $is_m       = $this->isM();
+        $is_z       = $this->isZ();
+        $shape_type = $is_z ? Shapefile::SHAPE_TYPE_POINTZ : ($is_m ? Shapefile::SHAPE_TYPE_POINTM : Shapefile::SHAPE_TYPE_POINT);
         
         // Shape type
         $ret = $this->packInt32L($shape_type);
