@@ -1056,7 +1056,12 @@ class ShapefileWriter extends Shapefile
         
         //Bounding Box
         $bounding_box = $this->getBoundingBox();
-        $ret .= $this->packXYBoundingBox($bounding_box);
+        $ret .= $this->packXYBoundingBox($bounding_box ?: [
+            'xmin' => -Shapefile::SHP_NO_DATA_VALUE,
+            'ymin' => -Shapefile::SHP_NO_DATA_VALUE,
+            'xmax' => Shapefile::SHP_NO_DATA_VALUE,
+            'ymax' => Shapefile::SHP_NO_DATA_VALUE,
+        ]);
         $ret .= $this->packZRange($this->isZ() ? $bounding_box : ['zmin' => 0, 'zmax' => 0]);
         $ret .= $this->packMRange($this->isM() ? $bounding_box : ['mmin' => 0, 'mmax' => 0]);
         
