@@ -188,8 +188,8 @@ class Linestring extends MultiPoint
      */
     private function computeGaussArea($points, $exp = 0)
     {
-        // If a coefficient of 10^9 is not enough, give up!
-        if ($exp > 9) {
+        // If a coefficient of 10^12 is not enough, give up!
+        if ($exp > 12) {
             return 0;
         }
         $coef = pow(10, $exp);
