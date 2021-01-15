@@ -473,44 +473,58 @@ abstract class Geometry
      * Return sanitized GeoJSON, keeping just the geometry part.
      * It attempts to sanitize user-provided GeoJSON and throws an exception if it appears to be invalid.
      *
+     * If a GeoJSON Feature is provided, properties data will be stored within the Geometry.
+     *
      * @param   string  $geojson    The GeoJSON to sanitize.
      *
-     * @return  string
+     * @return  array   [
+     *                      "coordinates"   => []
+     *                      "flag_m"        => bool
+     *                  ]
      */
     protected function geojsonSanitize($geojson)
     {
         $geojson = json_decode($geojson, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new ShapefileException(Shapefile::ERR_INPUT_GEOJSON_NOT_VALID, 'Cannot parse JSON input');
+        }
         
-        // If it is null it means "an empty Geometry"
-        if ($geojson === null) {
+        // Treat any value other than a GeoJSON object as null (empty Geometry)
+        if (!is_array($geojson)) {
             return null;
         }
-        // If it is a Feature just keep the Geometry part
-        if (isset($geojson['geometry'])) {
-            $geojson = $geojson['geometry'];
-        }
-        // Check if "type" and "coordinates" are defined
-        if (!isset($geojson['type'], $geojson['coordinates'])) {
-            throw new ShapefileException(Shapefile::ERR_INPUT_GEOJSON_NOT_VALID);
-        }
-        // Check if "type" is consistent with current Geometry
-        if (substr(strtoupper(trim($geojson['type'])), 0, strlen($this->getGeoJSONBasetype())) != strtoupper($this->getGeoJSONBasetype())) {
-            throw new ShapefileException(Shapefile::ERR_INPUT_GEOJSON_NOT_VALID);
+        
+        // Handle Feature
+        $geojson = array_change_key_case($geojson, CASE_LOWER);
+        if (isset($geojson['type']) && strtolower(trim($geojson['type'])) === 'feature') {
+            if (!isset($geojson['properties']) || !is_array($geojson['properties'])) {
+                throw new ShapefileException(Shapefile::ERR_INPUT_GEOJSON_NOT_VALID, 'Feature "properties" not defined');
+            }
+            $this->setDataArray($geojson['properties']);
+            $geometry = !empty($geojson['geometry']) ?  array_change_key_case($geojson['geometry'], CASE_LOWER) : null;
+        } else {
+            $geometry = $geojson;
         }
         
-        return $geojson;
-    }
-    
-    /**
-     * Checks if GeoJSON type represents a Geometry that has a M dimension.
-     *
-     * @param   string  $type   The type speficied in the GeoJSON.
-     *
-     * @return  bool
-     */
-    protected function geojsonIsM($type)
-    {
-        return substr($type, -1) == 'M';
+        // If geometry is null it means "an empty Geometry"
+        if ($geometry === null) {
+            return null;
+        }
+        // Check if "type" and "coordinates" are defined and in correct format
+        if (!isset($geometry['type'], $geometry['coordinates']) || !is_string($geometry['type']) || !is_array($geometry['coordinates'])) {
+            throw new ShapefileException(Shapefile::ERR_INPUT_GEOJSON_NOT_VALID, 'Geometry "type" or "coordinates" not correctly defined');
+        }
+        // Check if "type" is consistent with current Geometry
+        $type = strtoupper(trim($geometry['type']));
+        if (substr($type, 0, strlen($this->getGeoJSONBasetype())) != strtoupper($this->getGeoJSONBasetype())) {
+            throw new ShapefileException(Shapefile::ERR_INPUT_GEOJSON_NOT_VALID, 'Wrong Geometry type - ' . $geometry['type']);
+        }
+        
+        // Empty "coordinates" array means empty Geometry
+        return empty($geometry['coordinates']) ? null : [
+            'coordinates'   => $geometry['coordinates'],
+            'flag_m'        => substr($type, -1) == 'M',
+        ];
     }
     
     /**
@@ -603,7 +617,7 @@ abstract class Geometry
             ($force_z && $force_m && $count < 4)    ||
             $count > 4
         ) {
-            throw new ShapefileException($err_code);
+            throw new ShapefileException($err_code, 'Wrong coordinates format');
         }
         
         $ret = [

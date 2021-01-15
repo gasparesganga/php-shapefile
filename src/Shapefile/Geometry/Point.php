@@ -110,7 +110,7 @@ class Point extends Geometry
         $this->checkInit();
         $geojson = $this->geojsonSanitize($geojson);
         if ($geojson !== null) {
-            $coordinates = $this->geojsonParseCoordinates($geojson['coordinates'], $this->geojsonIsM($geojson['type']));
+            $coordinates = $this->geojsonParseCoordinates($geojson['coordinates'], $geojson['flag_m']);
             $this->init($coordinates['x'], $coordinates['y'], $coordinates['z'], $coordinates['m']);
         }
         return $this;

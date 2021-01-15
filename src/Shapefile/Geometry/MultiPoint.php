@@ -88,9 +88,8 @@ class MultiPoint extends GeometryCollection
         $this->checkInit();
         $geojson = $this->geojsonSanitize($geojson);
         if ($geojson !== null) {
-            $force_m = $this->geojsonIsM($geojson['type']);
             foreach ($geojson['coordinates'] as $geojson_coordinates) {
-                $coordinates = $this->geojsonParseCoordinates($geojson_coordinates, $force_m);
+                $coordinates = $this->geojsonParseCoordinates($geojson_coordinates, $geojson['flag_m']);
                 $Point = new Point($coordinates['x'], $coordinates['y'], $coordinates['z'], $coordinates['m']);
                 $this->addPoint($Point);
             }

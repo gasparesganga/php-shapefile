@@ -156,13 +156,18 @@ class MultiPolygon extends GeometryCollection
         $this->checkInit();
         $geojson = $this->geojsonSanitize($geojson);
         if ($geojson !== null) {
-            $force_m = $this->geojsonIsM($geojson['type']);
             foreach ($geojson['coordinates'] as $part) {
+                if (!is_array($part)) {
+                    throw new ShapefileException(Shapefile::ERR_INPUT_GEOJSON_NOT_VALID, 'Wrong coordinates format');
+                }
                 $Polygon = new Polygon(null, $this->closed_rings, $this->force_orientation);
                 foreach ($part as $ring) {
+                    if (!is_array($ring)) {
+                        throw new ShapefileException(Shapefile::ERR_INPUT_GEOJSON_NOT_VALID, 'Wrong coordinates format');
+                    }
                     $Linestring = new Linestring();
                     foreach ($ring as $geojson_coordinates) {
-                        $coordinates = $this->geojsonParseCoordinates($geojson_coordinates, $force_m);
+                        $coordinates = $this->geojsonParseCoordinates($geojson_coordinates, $geojson['flag_m']);
                         $Point = new Point($coordinates['x'], $coordinates['y'], $coordinates['z'], $coordinates['m']);
                         $Linestring->addPoint($Point);
                     }
