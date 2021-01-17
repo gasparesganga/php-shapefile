@@ -1106,7 +1106,9 @@ abstract class Shapefile
      */
     protected function overwriteComputedBoundingBox($bounding_box)
     {
-        $this->computed_bounding_box = $this->sanitizeBoundingBox($bounding_box);
+        if ($bounding_box) {
+            $this->computed_bounding_box = $this->sanitizeBoundingBox($bounding_box);
+        }
         return $this;
     }
     

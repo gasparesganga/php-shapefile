@@ -340,7 +340,7 @@ class ShapefileReader extends Shapefile implements \Iterator
         $this->setShapeType($this->readInt32L(Shapefile::FILE_SHP));
         
         // Bounding Box (Z and M ranges are always present in the Shapefile, although with a 0 value if not used)
-        if (!$this->getOption(Shapefile::OPTION_IGNORE_SHAPEFILE_BBOX)) {
+        if (!$this->getOption(Shapefile::OPTION_IGNORE_SHAPEFILE_BBOX) && $this->getTotRecords() !== 0) {
             $bounding_box = $this->readXYBoundingBox() + $this->readZRange() + $this->readMRange();
             if (!$this->isZ()) {
                 unset($bounding_box['zmin']);

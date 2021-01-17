@@ -95,12 +95,7 @@ class ShapefileWriter extends Shapefile
         
         // Mode overwrite
         if ($this->getOption(Shapefile::OPTION_EXISTING_FILES_MODE) === Shapefile::MODE_OVERWRITE) {
-            foreach (array_keys($this->getFiles()) as $file_type) {
-                if ($this->getFileSize($file_type) > 0) {
-                    $this->fileTruncate($file_type);
-                    $this->setFilePointer($file_type, 0);
-                }
-            }
+            $this->truncateFiles();
         }
         
         // Mode append
@@ -133,23 +128,25 @@ class ShapefileWriter extends Shapefile
             // Close Shapefile in reading mode
             $ShapefileReader = null;
             
-            // Mark Shapefile as initialized if there are any records
             if ($this->getTotRecords() > 0) {
+                // Mark Shapefile as initialized
                 $this->setFlagInitialized(true);
-            }
-            // Flag init headers
-            $this->flag_init_headers = true;
-            // SHP current offset (in 16-bit words)
-            $this->shp_current_offset = $this->getFileSize(Shapefile::FILE_SHP) / 2;
-            // Remove DBF EOF marker
-            $dbf_size_without_eof = $this->getFileSize(Shapefile::FILE_DBF) - 1;
-            $this->setFilePointer(Shapefile::FILE_DBF, $dbf_size_without_eof);
-            if ($this->readData(Shapefile::FILE_DBF, 1) === $this->packChar(Shapefile::DBF_EOF_MARKER)) {
-                $this->fileTruncate(Shapefile::FILE_DBF, $dbf_size_without_eof);
-            }
-            // Reset pointers
-            foreach (array_keys($this->getFiles()) as $file_type) {
-                $this->resetFilePointer($file_type);
+                // Set flag init headers
+                $this->flag_init_headers = true;
+                // SHP current offset (in 16-bit words)
+                $this->shp_current_offset = $this->getFileSize(Shapefile::FILE_SHP) / 2;
+                // Remove DBF EOF marker
+                $dbf_size_without_eof = $this->getFileSize(Shapefile::FILE_DBF) - 1;
+                $this->setFilePointer(Shapefile::FILE_DBF, $dbf_size_without_eof);
+                if ($this->readData(Shapefile::FILE_DBF, 1) === $this->packChar(Shapefile::DBF_EOF_MARKER)) {
+                    $this->fileTruncate(Shapefile::FILE_DBF, $dbf_size_without_eof);
+                }
+                // Reset pointers
+                foreach (array_keys($this->getFiles()) as $file_type) {
+                    $this->resetFilePointer($file_type);
+                }
+            } else {
+                $this->truncateFiles();
             }
         }
     }
@@ -164,8 +161,6 @@ class ShapefileWriter extends Shapefile
     {
         // Flush buffers
         $this->writeBuffers();
-        // Write DBF EOF marker to buffer
-        $this->writeData(Shapefile::FILE_DBF, $this->packChar(Shapefile::DBF_EOF_MARKER));
         
         // Try setting Shapefile as NULL SHAPE if it hasn't been initialized yet (no records written)
         if (!$this->isInitialized()) {
@@ -193,6 +188,9 @@ class ShapefileWriter extends Shapefile
         foreach (array_keys($this->buffers) as $file_type) {
             $this->resetFilePointer($file_type);
         }
+        
+        // Write DBF EOF marker
+        $this->writeData(Shapefile::FILE_DBF, $this->packChar(Shapefile::DBF_EOF_MARKER));
         
         // Write PRJ file
         if ($this->isFileOpen(Shapefile::FILE_PRJ)) {
@@ -403,6 +401,20 @@ class ShapefileWriter extends Shapefile
     
     
     /////////////////////////////// PRIVATE ///////////////////////////////
+    /**
+     * Truncates open files.
+     */
+    private function truncateFiles()
+    {
+        foreach (array_keys($this->getFiles()) as $file_type) {
+            if ($this->getFileSize($file_type) > 0) {
+                $this->fileTruncate($file_type);
+                $this->setFilePointer($file_type, 0);
+            }
+        }
+    }
+    
+    
     /**
      * Stores binary string packed data into a buffer.
      *
@@ -839,7 +851,7 @@ class ShapefileWriter extends Shapefile
     }
     
     /**
-     * Packs DBF and DBT data from a Geometry object into binary strings and returns an array with SHP, DBT and "dbt_next_available_block" members.
+     * Packs DBF and DBT data from a Geometry object into binary strings and returns an array with DBF, DBT and "dbt_next_available_block" members.
      *
      * @param   \Shapefile\Geometry\Geometry    $Geometry   Input Geometry.
      *
@@ -1053,14 +1065,18 @@ class ShapefileWriter extends Shapefile
         // Shape Type
         $ret .= $this->packInt32L($this->getShapeType(Shapefile::FORMAT_INT));
         
-        //Bounding Box
-        $bounding_box = $this->getBoundingBox();
-        $ret .= $this->packXYBoundingBox($bounding_box ?: [
-            'xmin' => -Shapefile::SHP_NO_DATA_VALUE,
-            'ymin' => -Shapefile::SHP_NO_DATA_VALUE,
-            'xmax' => Shapefile::SHP_NO_DATA_VALUE,
-            'ymax' => Shapefile::SHP_NO_DATA_VALUE,
-        ]);
+        //Bounding Box (Defaults to all zeros for empty Shapefile)
+        $bounding_box = $this->getBoundingBox() ?: [
+            'xmin' => 0,
+            'ymin' => 0,
+            'xmax' => 0,
+            'ymax' => 0,
+            'zmin' => 0,
+            'zmax' => 0,
+            'mmin' => 0,
+            'mmax' => 0,
+        ];
+        $ret .= $this->packXYBoundingBox($bounding_box);
         $ret .= $this->packZRange($this->isZ() ? $bounding_box : ['zmin' => 0, 'zmax' => 0]);
         $ret .= $this->packMRange($this->isM() ? $bounding_box : ['mmin' => 0, 'mmax' => 0]);
         
