@@ -75,6 +75,7 @@ abstract class Shapefile
     /** Misc */
     const EOF       = 0;
     const UNDEFINED = null;
+    const UNKNOWN   = -1;
     
     
     
@@ -190,6 +191,26 @@ abstract class Shapefile
     const OPTION_FORCE_MULTIPART_GEOMETRIES_DEFAULT = false;
     
     /**
+     * Ignores DBF file (useful to recover corrupted Shapefiles).
+     * Data will not be available for geometries.
+     * ShapefileReader
+     * @var bool
+     */
+    const OPTION_IGNORE_FILE_DBF = 'OPTION_IGNORE_FILE_DBF';
+    const OPTION_IGNORE_FILE_DBF_DEFAULT = false;
+    
+    /**
+     * Ignores SHX file (useful to recover corrupted Shapefiles).
+     * This might not always work as it relies on SHP records headers content lengths
+     * and assumes there are no unused bytes between records in SHP file.
+     * Random access to specific records will not be possible.
+     * ShapefileReader
+     * @var bool
+     */
+    const OPTION_IGNORE_FILE_SHX = 'OPTION_IGNORE_FILE_SHX';
+    const OPTION_IGNORE_FILE_SHX_DEFAULT = false;
+    
+    /**
      * Ignores Geometries bounding box found in Shapefile.
      * ShapefileReader
      * @var bool
@@ -207,7 +228,7 @@ abstract class Shapefile
     
     /**
      * Defines action to perform on Polygons rings.
-     * They should be closed but some software don't enforce that, creating uncompliant Shapefiles.
+     * They should be closed but some software do not enforce that, creating uncompliant Shapefiles.
      * Possible values:
      *    Shapefile::ACTION_IGNORE : No action taken
      *    Shapefile::ACTION_CHECK  : Checks for open rings and eventually throws Shapefile::ERR_GEOM_POLYGON_OPEN_RING
@@ -364,6 +385,9 @@ abstract class Shapefile
     const ERR_GEOM_RING_NOT_ENOUGH_VERTICES = 'ERR_GEOM_RING_NOT_ENOUGH_VERTICES';
     const ERR_GEOM_RING_NOT_ENOUGH_VERTICES_MESSAGE = "Not enough vertices. Cannot determine ring orientation";
     
+    const ERR_INPUT_RANDOM_ACCESS_UNAVAILABLE = 'ERR_INPUT_RANDOM_ACCESS_UNAVAILABLE';
+    const ERR_INPUT_RANDOM_ACCESS_UNAVAILABLE_MESSAGE = "Cannot change current record without a valid SHX file";
+    
     const ERR_INPUT_RECORD_NOT_FOUND = 'ERR_INPUT_RECORD_NOT_FOUND';
     const ERR_INPUT_RECORD_NOT_FOUND_MESSAGE = "Record index not found (check the total number of records in the SHP file)";
     
@@ -423,6 +447,7 @@ abstract class Shapefile
     const SHP_HEADER_SIZE       = 100;
     const SHP_NO_DATA_THRESHOLD = -1e38;
     const SHP_NO_DATA_VALUE     = -1e40;
+    const SHP_REC_HEADER_SIZE   = 8;
     const SHP_VERSION           = 1000;
     /** SHX files constants */
     const SHX_HEADER_SIZE       = 100;
@@ -434,7 +459,7 @@ abstract class Shapefile
     const DBF_EOF_MARKER        = 0x1a;
     const DBF_FIELD_TERMINATOR  = 0x0d;
     const DBF_MAX_FIELD_COUNT   = 255;
-    const DBF_VALUE_MASK_TRUE   = 'TtYy';
+    const DBF_VALUE_MASK_TRUE   = 'TtYy1';
     const DBF_VALUE_FALSE       = 'F';
     const DBF_VALUE_NULL        = '?';
     const DBF_VALUE_TRUE        = 'T';
@@ -727,10 +752,11 @@ abstract class Shapefile
      *
      * @param   string|array    $files          Path to SHP file / Array of paths / Array of resource handles of individual files.
      * @param   bool            $write_access   Access type: false = read; true = write.
+     * @param   array           $ignored_files  Optional map of files to ignore [filetype => bool].
      *
      * @return  self    Returns $this to provide a fluent interface.
      */
-    protected function openFiles($files, $write_access)
+    protected function openFiles($files, $write_access, $ignored_files = [])
     {
         // Create $files array from single string (SHP filename)
         if (is_string($files)) {
@@ -745,15 +771,23 @@ abstract class Shapefile
             ];
         }
         
+        // Ignored files
+        $ignored_files = $ignored_files + [
+            Shapefile::FILE_SHX => false,
+            Shapefile::FILE_DBF => false,
+        ];
+        
         // Make sure required files are specified
-        if (!is_array($files) || !isset($files[Shapefile::FILE_SHP])) {
-            throw new ShapefileException(Shapefile::ERR_FILE_MISSING, strtoupper(Shapefile::FILE_SHP));
-        }
-        if (!is_array($files) || !isset($files[Shapefile::FILE_SHX])) {
-            throw new ShapefileException(Shapefile::ERR_FILE_MISSING, strtoupper(Shapefile::FILE_SHX));
-        }
-        if (!is_array($files) || !isset($files[Shapefile::FILE_DBF])) {
-            throw new ShapefileException(Shapefile::ERR_FILE_MISSING, strtoupper(Shapefile::FILE_DBF));
+        foreach (
+            [
+                Shapefile::FILE_SHP,
+                Shapefile::FILE_SHX,
+                Shapefile::FILE_DBF,
+            ] as $type
+        ) {
+            if (!is_array($files) || (!isset($files[$type]) && (!isset($ignored_files[$type]) || !$ignored_files[$type]))) {
+                throw new ShapefileException(Shapefile::ERR_FILE_MISSING, strtoupper($type));
+            }
         }
         
         
@@ -761,15 +795,17 @@ abstract class Shapefile
         if ($files === array_filter($files, 'is_resource')) {
             // Resource handles
             foreach ($files as $type => $file) {
-                $file_mode = stream_get_meta_data($file)['mode'];
-                if (
-                        get_resource_type($file) != 'stream'
-                    ||  (!$write_access && !in_array($file_mode, array('rb', 'r+b', 'w+b', 'x+b', 'c+b')))
-                    ||  ($write_access && !in_array($file_mode, array('r+b', 'wb', 'w+b', 'xb', 'x+b', 'cb', 'c+b')))
-                ) {
-                    throw new ShapefileException(Shapefile::ERR_FILE_INVALID_RESOURCE, strtoupper($type));
+                if (!isset($ignored_files[$type]) || !$ignored_files[$type]) {
+                    $file_mode = stream_get_meta_data($file)['mode'];
+                    if (
+                            get_resource_type($file) != 'stream'
+                        ||  (!$write_access && !in_array($file_mode, ['rb', 'r+b', 'w+b', 'x+b', 'c+b']))
+                        ||  ($write_access && !in_array($file_mode, ['r+b', 'wb', 'w+b', 'xb', 'x+b', 'cb', 'c+b']))
+                    ) {
+                        throw new ShapefileException(Shapefile::ERR_FILE_INVALID_RESOURCE, strtoupper($type));
+                    }
+                    $this->files[$type] = $file;
                 }
-                $this->files[$type] = $file;
             }
             $this->filenames = [];
         } else {
@@ -777,14 +813,14 @@ abstract class Shapefile
             foreach (
                 [
                     Shapefile::FILE_SHP => true,
-                    Shapefile::FILE_SHX => true,
-                    Shapefile::FILE_DBF => true,
+                    Shapefile::FILE_SHX => !$ignored_files[Shapefile::FILE_SHX],
+                    Shapefile::FILE_DBF => !$ignored_files[Shapefile::FILE_DBF],
                     Shapefile::FILE_DBT => false,
                     Shapefile::FILE_PRJ => false,
                     Shapefile::FILE_CPG => false,
                 ] as $type => $required
             ) {
-                if (isset($files[$type])) {
+                if (isset($files[$type]) && (!isset($ignored_files[$type]) || !$ignored_files[$type])) {
                     if (
                             (!$write_access && is_string($files[$type]) && is_readable($files[$type]) && is_file($files[$type]))
                         ||  ($write_access && is_string($files[$type]) && is_writable(dirname($files[$type])) && (!file_exists($files[$type]) || ($this->getOption(Shapefile::OPTION_EXISTING_FILES_MODE) != Shapefile::MODE_PRESERVE && is_readable($files[$type]) && is_file($files[$type]))))
@@ -984,15 +1020,15 @@ abstract class Shapefile
     /**
      * Initializes options with default and user-provided values.
      *
-     * @param   array   $options    Array of options to initialize.
-     * @param   array   $custom     User-provided options
+     * @param   array   $options_list   Array of options to initialize.
+     * @param   array   $user_values    User-provided options values.
      *
      * @return  self    Returns $this to provide a fluent interface.
      */
-    protected function initOptions($options, $custom)
+    protected function initOptions($options_list, $user_values)
     {
         // Make sure compulsory options used in this abstract class are defined
-        $options = array_unique(array_merge($options, [
+        $options_list = array_unique(array_merge($options_list, [
             Shapefile::OPTION_DBF_ALLOW_FIELD_SIZE_255,
             Shapefile::OPTION_DBF_FORCE_ALL_CAPS,
             Shapefile::OPTION_SUPPRESS_M,
@@ -1001,15 +1037,15 @@ abstract class Shapefile
         
         // Defaults
         $defaults = [];
-        foreach ($options as $option) {
+        foreach ($options_list as $option) {
             $defaults[$option] = constant('Shapefile\Shapefile::' . $option . '_DEFAULT');
         }
         
         // Filter custom options
-        $custom = array_intersect_key(array_change_key_case($custom, CASE_UPPER), $defaults);
+        $user_values = array_intersect_key(array_change_key_case($user_values, CASE_UPPER), $defaults);
         
         // Initialize option array
-        $this->options = $custom + $defaults;
+        $this->options = $user_values + $defaults;
         
         // Use only the first character of OPTION_DBF_NULL_PADDING_CHAR if it's set and is not false or empty
         $k = Shapefile::OPTION_DBF_NULL_PADDING_CHAR;
@@ -1038,19 +1074,6 @@ abstract class Shapefile
         return $this->options[$option];
     }
     
-    /**
-     * Sets option value.
-     *
-     * @param   string  $option     Name of the option.
-     * @param   mixed   $value      Value of the option.
-     *
-     * @return  self    Returns $this to provide a fluent interface.
-     */
-    protected function setOption($option, $value)
-    {
-        $this->options[$option] = $value;
-        return $this;
-    }
     
     /**
      * Sets shape type.
