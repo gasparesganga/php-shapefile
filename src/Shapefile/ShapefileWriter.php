@@ -974,12 +974,19 @@ class ShapefileWriter extends Shapefile
                 break;
             
             case Shapefile::DBF_TYPE_LOGICAL:
-                if ($value === null) {
-                    $value = Shapefile::DBF_VALUE_NULL;
-                } elseif ($value === true || (is_string($value) && strpos(Shapefile::DBF_VALUE_MASK_TRUE, substr(trim($value), 0, 1)) !== false)) {
-                    $value = Shapefile::DBF_VALUE_TRUE;
+                if (is_string($value)) {
+                    $value = substr(trim($value), 0, 1);
+                    if (strpos(Shapefile::DBF_VALUE_MASK_TRUE, $value) !== false) {
+                        $value = Shapefile::DBF_VALUE_TRUE;
+                    } elseif (strpos(Shapefile::DBF_VALUE_MASK_FALSE, $value) !== false) {
+                        $value = Shapefile::DBF_VALUE_FALSE;
+                    } else {
+                        $value = Shapefile::DBF_VALUE_NULL;
+                    }
+                } elseif (is_bool($value) || is_int($value) || is_float($value)) {
+                    $value = $value ? Shapefile::DBF_VALUE_TRUE : Shapefile::DBF_VALUE_FALSE;
                 } else {
-                    $value = Shapefile::DBF_VALUE_FALSE;
+                    $value = Shapefile::DBF_VALUE_NULL;
                 }
                 break;
             
