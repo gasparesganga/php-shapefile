@@ -459,6 +459,7 @@ abstract class Shapefile
     const DBF_EOF_MARKER        = 0x1a;
     const DBF_FIELD_TERMINATOR  = 0x0d;
     const DBF_MAX_FIELD_COUNT   = 255;
+    const DBF_VALUE_MASK_FALSE  = 'FfNn0';
     const DBF_VALUE_MASK_TRUE   = 'TtYy1';
     const DBF_VALUE_FALSE       = 'F';
     const DBF_VALUE_NULL        = '?';

@@ -532,7 +532,13 @@ class ShapefileReader extends Shapefile implements \Iterator
                     break;
                     
                 case Shapefile::DBF_TYPE_LOGICAL:
-                    $value = ($value === Shapefile::DBF_VALUE_NULL) ? null : strpos(Shapefile::DBF_VALUE_MASK_TRUE, $value) !== false;
+                    if (strpos(Shapefile::DBF_VALUE_MASK_TRUE, $value) !== false) {
+                        $value = true;
+                    } elseif (strpos(Shapefile::DBF_VALUE_MASK_FALSE, $value) !== false) {
+                        $value = false;
+                    } else {
+                        $value = null;
+                    }
                     break;
             }
         }
