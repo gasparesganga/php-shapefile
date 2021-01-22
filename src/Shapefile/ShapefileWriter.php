@@ -1074,14 +1074,14 @@ class ShapefileWriter extends Shapefile
         
         //Bounding Box (Defaults to all zeros for empty Shapefile)
         $bounding_box = $this->getBoundingBox() ?: [
-            'xmin' => 0,
-            'ymin' => 0,
-            'xmax' => 0,
-            'ymax' => 0,
-            'zmin' => 0,
-            'zmax' => 0,
-            'mmin' => 0,
-            'mmax' => 0,
+            'xmin' => -Shapefile::SHP_NO_DATA_VALUE,
+            'ymin' => -Shapefile::SHP_NO_DATA_VALUE,
+            'xmax' => Shapefile::SHP_NO_DATA_VALUE,
+            'ymax' => Shapefile::SHP_NO_DATA_VALUE,
+            'zmin' => -Shapefile::SHP_NO_DATA_VALUE,
+            'zmax' => Shapefile::SHP_NO_DATA_VALUE,
+            'mmin' => -Shapefile::SHP_NO_DATA_VALUE,
+            'mmax' => Shapefile::SHP_NO_DATA_VALUE,
         ];
         $ret .= $this->packXYBoundingBox($bounding_box);
         $ret .= $this->packZRange($this->isZ() ? $bounding_box : ['zmin' => 0, 'zmax' => 0]);
