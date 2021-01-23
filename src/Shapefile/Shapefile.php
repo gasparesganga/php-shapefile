@@ -5,7 +5,7 @@
  *
  * @package Shapefile
  * @author  Gaspare Sganga
- * @version 3.3.3
+ * @version 3.4.0
  * @license MIT
  * @link    https://gasparesganga.com/labs/php-shapefile/
  */
@@ -201,7 +201,7 @@ abstract class Shapefile
     
     /**
      * Ignores SHX file (useful to recover corrupted Shapefiles).
-     * This might not always work as it relies on SHP records headers content lengths
+     * This might not always work as it relies on SHP record headers content lengths
      * and assumes there are no unused bytes between records in SHP file.
      * Random access to specific records will not be possible.
      * ShapefileReader

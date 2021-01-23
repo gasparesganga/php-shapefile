@@ -5,9 +5,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## v3.4.0 - 2021-01-23
+### Added
+- Full GeoJSON *Feature* support with properties data
+- Capability to ignore *DBF* and *SHX* files to recover corrupted Shapefiles
+- ShapefileReader constructor options constants:
+    - `Shapefile::OPTION_IGNORE_FILE_DBF`
+    - `Shapefile::OPTION_IGNORE_FILE_SHX`
+- `ShapefileReader::getTotRecords()` output constant:
+    - `Shapefile::UNKNOWN`
+- Error types constants:
+    - `Shapefile::ERR_INPUT_RANDOM_ACCESS_UNAVAILABLE`
+
+### Changed
+- Improved handling of *Logical* fields in *DBF* files
+- Increased tolerance coefficient to deal with extremely small areas when determining ring orientation
+
+### Fixed
+- Handling of unspecified bounding box in *SHP* and *SHX* file headers for empty Shapefiles
+- Behaviour with *DBF* files for empty Shapefiles
+
+
+
 ## v3.3.3 - 2020-09-17
 ### Fixed
-- Bug in ShapefileWriter::packPoint() method affecting *Z* and *M* geometries
+- Bug in `ShapefileWriter::packPoint()` method affecting *Z* and *M* geometries
 
 
 
@@ -111,7 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `Shapefile::OPTION_EXISTING_FILES_MODE` constructor option for `ShapefileWriter` class
 - `Shapefile::MODE_PRESERVE`, `Shapefile::MODE_APPEND`, `Shapefile::MODE_OVERWRITE` constants
 - `isZ()`, `isM()` and `getFieldsNames()` methods for both `ShapefileReader` and `ShapefileWriter` classes
-- `ShapefileWriter` expose `getShapeType()`, `getBoundingBox()`, `getPRJ()`, `getCharset()`, `setCharset()`, `getFieldsNames()`, `getField()`, `getFieldType()`, `getFieldSize()`, `getFieldDecimals()`, `getFields()` and `getTotRecords()` public methods like `ShapefileReader`
+- `ShapefileWriter` exposes `getShapeType()`, `getBoundingBox()`, `getPRJ()`, `getCharset()`, `setCharset()`, `getFieldsNames()`, `getField()`, `getFieldType()`, `getFieldSize()`, `getFieldDecimals()`, `getFields()` and `getTotRecords()` public methods like `ShapefileReader`
 - Sanitize and accept conflicting and duplicated field names
 - Other minor code and performance improvements across the library
 
@@ -128,7 +150,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `Shapefile::ERR_GEOM_MISSING_FIELD` exception was erroneously raised when a field had an explicit `null` value and `Shapefile::OPTION_ENFORCE_GEOMETRY_DATA_STRUCTURE` was enabled
 - Suppress PHP warnings in `fread()` and `fwrite()` calls: a `ShapefileException` is thrown anyways
 - Bug causing a corrupted *DBF* file when a `Shapefile::ERR_GEOM_MISSING_FIELD` is raised
-- Bug causing wrong record number to be written in SHP record headers (count starts from `1`, not from `0`)
+- Bug causing wrong record number to be written in *SHP* record headers (count starts from `1`, not from `0`)
 - Corner case bug affecting `ShapefileWriter` destructor when no record has been written yet
 
 ### Removed
@@ -287,7 +309,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## v2.4.3 - 2018-04-07
 ### Fixed
-- Bug in binary reading function causing issues with DBF fields size
+- Bug in binary reading function causing issues with *DBF* fields size
 
 
 
@@ -336,16 +358,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Error code 91: RECORD_INDEX_NOT_VALID
 
 ### Changed
-- Class constructor: SHX file is now required
+- Class constructor: *SHX* file is now required
 
 ### Fixed
-- Handles eventual useless random bytes between records in the SHP file (using the SHX file for the correct offsets)
+- Handles eventual useless random bytes between records in the *SHP* file (using the *SHX* file for the correct offsets)
 
 
 
 ## v2.1.0 - 2016-11-17
 ### Added
-- Public method `getDBFFields()`. It provides the fields definition in the DBF file
+- Public method `getDBFFields()`. It provides the fields definition in the *DBF* file
 
 
 
@@ -358,17 +380,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## v2.0.0 - 2016-11-01
 ### Added
 - Support for Z and M shapes
-- Native DBF reading capabilities (no dbase functions or external libraries required anymore)
+- Native *DBF* reading capabilities (no dbase functions or external libraries required anymore)
 - `FLAG_SUPPRESS_Z` and `FLAG_SUPPRESS_M` flags for ShapeFile constructor
 - `GEOMETRY_BOTH` format for `getRecord()` method
 - `ShapeFile` namespace and `ShapeFileAutoloader` class
-- DBF error codes `41` and `42`
+- *DBF* error codes `41` and `42`
 - CHANGELOG file
 
 ### Changed
 - Code is now php-fig PSR-1, PSR-2 and PSR-4 compliant
 - PHP 7 compatible
-- All strings read from DBF are returned already encoded in utf-8
+- All strings read from *DBF* are returned already encoded in utf-8
 
 ### Removed
 - PHP XBase library dependency as dbase fallback 
