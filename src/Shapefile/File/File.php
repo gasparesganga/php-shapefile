@@ -12,132 +12,97 @@
 
 namespace Shapefile\File;
 
-use Shapefile\Shapefile;
-use Shapefile\ShapefileException;
-
 /**
- * Default FileInterface implementation.
- * It allows reading/writing of files in binary mode.
- * It accepts both filepaths and stream resource handles.
+ * Interface to interact with files in binary mode.
  */
-class File implements FileInterface
+interface File
 {
-    /////////////////////////////// PRIVATE VARIABLES ///////////////////////////////
     /**
-     * @var resource    File resource handle.
-     */
-    private $handle = null;
-    
-    /**
-     * @var bool        Flag to store whether file was passed as resource handle or not.
-     */
-    private $flag_resource = false;
-    
-    
-    
-    /////////////////////////////// PUBLIC ///////////////////////////////
-    /**
-     * Constructor.
-     * Opens file with binary read or write access.
+     * Returns true if file is readable.
      *
-     * @param   string|resource $file           Path to file or resource handle.
-     * @param   bool            $write_access   Access type: false = read; true = write.
+     * @return  bool
      */
-    public function __construct($file, $write_access)
-    {
-        $this->flag_resource = is_resource($file);
-        
-        if ($this->flag_resource) {
-            $this->handle = $file;
-            if (get_resource_type($this->handle) !== 'stream' || !stream_get_meta_data($this->handle)['seekable']) {
-                throw new ShapefileException(Shapefile::ERR_FILE_RESOURCE_NOT_VALID);
-            }
-            if ((!$write_access && !$this->isReadable()) || ($write_access && !$this->isWritable())) {
-                throw new ShapefileException(Shapefile::ERR_FILE_PERMISSIONS);
-            }
-        } else {
-            $this->handle = @fopen($file, $write_access ? 'c+b' : 'rb');
-            if ($this->handle === false) {
-                throw new ShapefileException(Shapefile::ERR_FILE_OPEN);
-            }
-        }
-    }
+    public function isReadable();
+    
     
     /**
-     * Destructor.
+     * Returns true if file is writable.
      *
-     * Closes file if it was NOT passed as resource handle.
+     * @return  bool
      */
-    public function __destruct()
-    {
-        if (!$this->flag_resource) {
-            fclose($this->handle);
-        }
-    }
+    public function isWritable();
     
     
     /**
-     * Gets canonicalized absolute pathname.
+     * Truncates file to given length.
+     *
+     * @param   int     $size   Size to truncate to.
+     *
+     * @return  void
      */
-    public function getFilepath()
-    {
-        return realpath(stream_get_meta_data($this->handle)['uri']);
-    }
+    public function truncate($size);
     
     
-    public function isReadable()
-    {
-        return in_array(stream_get_meta_data($this->handle)['mode'], ['rb', 'r+b', 'w+b', 'x+b', 'c+b']);
-    }
-    
-    public function isWritable()
-    {
-        return in_array(stream_get_meta_data($this->handle)['mode'], ['r+b', 'wb', 'w+b', 'xb', 'x+b', 'cb', 'c+b']);
-    }
+    /**
+     * Gets file size in bytes.
+     *
+     * @return  int
+     */
+    public function getSize();
     
     
-    public function truncate($size)
-    {
-        ftruncate($this->handle, $size);
-    }
-    
-    public function getSize()
-    {
-        return fstat($this->handle)['size'];
-    }
+    /**
+     * Gets file current pointer position.
+     *
+     * @return  int
+     */
+    public function getPointer();
     
     
-    public function getPointer()
-    {
-        return ftell($this->handle);
-    }
-    
-    public function setPointer($position)
-    {
-        fseek($this->handle, $position, SEEK_SET);
-    }
-    
-    public function resetPointer()
-    {
-        fseek($this->handle, 0, SEEK_END);
-    }
-    
-    public function setOffset($offset)
-    {
-        fseek($this->handle, $offset, SEEK_CUR);
-    }
+    /**
+     * Sets file pointer to specified position.
+     *
+     * @param   int     $position   The position to set the pointer to.
+     *
+     * @return  void
+     */
+    public function setPointer($position);
     
     
-    public function read($length)
-    {
-        return @fread($this->handle, $length);
-    }
+    /**
+     * Resets file pointer position to its end.
+     *
+     * @return  void.
+     */
+    public function resetPointer();
     
-    public function write($data)
-    {
-        if (@fwrite($this->handle, $data) === false) {
-            return false;
-        }
-        return true;
-    }
+    
+    /**
+     * Increases file pointer position of specified offset.
+     *
+     * @param   int     $offset     The offset to move the pointer for.
+     *
+     * @return  void
+     */
+    public function setOffset($offset);
+    
+    
+    /**
+     * Reads raw binary string packed data from file.
+     *
+     * @param   int     $length     Number of bytes to read.
+     *
+     * @return  string|false    Returns binary string packed data, or false on failure.
+     */
+    public function read($length);
+    
+    
+    /**
+     * Writes raw binary string packed data to file.
+     *
+     * @param   string  $data       Binary string packed data to write.
+     *
+     * @return  bool        Returns true on success, or false on failure.
+     */
+    public function write($data);
 }
