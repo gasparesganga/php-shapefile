@@ -1009,6 +1009,7 @@ abstract class Shapefile
      */
     protected function readData($file_type, $length)
     {
+        if($length == 0) return '';
         $ret = $this->files[$file_type]->read($length);
         if ($ret === false) {
             throw new ShapefileException(Shapefile::ERR_FILE_READING);
@@ -1291,13 +1292,12 @@ abstract class Shapefile
         $size       = intval($size);
         $max_size   = $this->getOption(Shapefile::OPTION_DBF_ALLOW_FIELD_SIZE_255) ? 255 : 254;
         if (
-                ($size < 1)
-            ||  ($type == Shapefile::DBF_TYPE_CHAR && $size > $max_size)
+            ($type == Shapefile::DBF_TYPE_CHAR && $size > $max_size)
             ||  ($type == Shapefile::DBF_TYPE_DATE && $size !== 8)
             ||  ($type == Shapefile::DBF_TYPE_LOGICAL && $size !== 1)
             ||  ($type == Shapefile::DBF_TYPE_MEMO && $size !== 10)
-            ||  ($type == Shapefile::DBF_TYPE_NUMERIC && $size > $max_size)
-            ||  ($type == Shapefile::DBF_TYPE_FLOAT && $size > $max_size)
+            ||  ($type == Shapefile::DBF_TYPE_NUMERIC && ($size > $max_size || $size < 1))
+            ||  ($type == Shapefile::DBF_TYPE_FLOAT && ($size > $max_size || $size < 1))
         ) {
             throw new ShapefileException(Shapefile::ERR_DBF_FIELD_SIZE_NOT_VALID, $size);
         }
