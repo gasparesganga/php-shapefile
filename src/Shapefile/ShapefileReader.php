@@ -171,6 +171,8 @@ class ShapefileReader extends Shapefile implements \Iterator
     public function rewind()
     {
         $this->current_record = 0;
+        $this->setFilePointer(Shapefile::FILE_SHP, Shapefile::SHP_HEADER_SIZE);
+
         $this->next();
     }
     
