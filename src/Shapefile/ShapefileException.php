@@ -26,6 +26,11 @@ class ShapefileException extends \Exception
      * @var string      Additional information about the error.
      */
     private $details;
+
+    /**
+     * @var string The field where the error was raised if relevant
+     */
+    private string $field = '';
     
     
     /**
@@ -34,10 +39,11 @@ class ShapefileException extends \Exception
      * @param   string  $error_type     Error type.
      * @param   string  $details        Optional information about the error.
      */
-    public function __construct($error_type, $details = '')
+    public function __construct($error_type, $details = '', $field = '')
     {
         $this->error_type   = $error_type;
         $this->details      = $details;
+        $this->field        = $field;
         
         $message = constant('Shapefile\Shapefile::' . $error_type . '_MESSAGE');
         parent::__construct($message, 0, null);
@@ -61,5 +67,15 @@ class ShapefileException extends \Exception
     public function getDetails()
     {
         return $this->details;
+    }
+
+    /**
+     * Gets field name if revelant, empty string otherwise
+     *
+     * @return  string
+     */
+    public function getField()
+    {
+        return $this->field;
     }
 }
