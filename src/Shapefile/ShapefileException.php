@@ -28,9 +28,9 @@ class ShapefileException extends \Exception
     private $details;
 
     /**
-     * @var string The field where the error was raised if appropriate
+     * @var string      The field where the error was raised if appropriate
      */
-    private string $field = '';
+    private $field = '';
     
     
     /**
