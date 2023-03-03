@@ -1269,7 +1269,7 @@ abstract class Shapefile
         }
         // Check filed count
         if (count($this->fields) >= Shapefile::DBF_MAX_FIELD_COUNT) {
-            throw new ShapefileException(Shapefile::ERR_DBF_MAX_FIELD_COUNT_REACHED, Shapefile::DBF_MAX_FIELD_COUNT);
+            throw new ShapefileException(Shapefile::ERR_DBF_MAX_FIELD_COUNT_REACHED, Shapefile::DBF_MAX_FIELD_COUNT, $name);
         }
         
         // Sanitize name and normalize case
@@ -1284,7 +1284,7 @@ abstract class Shapefile
             &&  $type !== Shapefile::DBF_TYPE_NUMERIC
             &&  $type !== Shapefile::DBF_TYPE_FLOAT
         ) {
-            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_TYPE_NOT_VALID, "$name - $type");
+            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_TYPE_NOT_VALID, "$name - $type", $name);
         }
         
         // Check size
@@ -1299,7 +1299,7 @@ abstract class Shapefile
             ||  ($type == Shapefile::DBF_TYPE_NUMERIC && $size > $max_size)
             ||  ($type == Shapefile::DBF_TYPE_FLOAT && $size > $max_size)
         ) {
-            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_SIZE_NOT_VALID, "$name - $type - $size");
+            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_SIZE_NOT_VALID, "$name - $type - $size", $name);
         }
         
         // Minimal decimal formal check
@@ -1310,7 +1310,7 @@ abstract class Shapefile
             ||  ($decimals < 0)
             ||  ($decimals > 0 && $size - 1 <= $decimals)
         ) {
-            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_DECIMALS_NOT_VALID, "$name - $type - $decimals");
+            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_DECIMALS_NOT_VALID, "$name - $type - $decimals", $name);
         }
         
         // Add field
