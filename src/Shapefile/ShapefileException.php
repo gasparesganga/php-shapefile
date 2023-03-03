@@ -28,7 +28,7 @@ class ShapefileException extends \Exception
     private $details;
 
     /**
-     * @var string The field where the error was raised if relevant
+     * @var string The field where the error was raised if appropriate
      */
     private string $field = '';
     
@@ -70,7 +70,7 @@ class ShapefileException extends \Exception
     }
 
     /**
-     * Gets field name if revelant, empty string otherwise
+     * Gets field name if appropriate, empty string otherwise
      *
      * @return  string
      */
