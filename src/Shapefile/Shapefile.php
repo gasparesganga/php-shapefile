@@ -5,15 +5,12 @@
  *
  * @package Shapefile
  * @author  Gaspare Sganga
- * @version 3.5.0dev
+ * @version 3.4.0
  * @license MIT
  * @link    https://gasparesganga.com/labs/php-shapefile/
  */
 
 namespace Shapefile;
-
-use Shapefile\File\File;
-use Shapefile\File\StreamResourceFile;
 
 /**
  * Abstract base class for ShapefileReader and ShapefileWriter.
@@ -158,8 +155,7 @@ abstract class Shapefile
     const OPTION_DBF_RETURN_DATES_AS_OBJECTS_DEFAULT = false;
     
     /**
-     * Deletes empty files after closing them.
-     * This makes sense only when they were passed as resource handles or File instances.
+     * Deletes empty files after closing them (only if they were passed as resource handles).
      * ShapefileWriter
      * @var bool
      */
@@ -296,14 +292,8 @@ abstract class Shapefile
     const ERR_FILE_EXISTS = 'ERR_FILE_EXISTS';
     const ERR_FILE_EXISTS_MESSAGE = "Check if the file exists and is readable and/or writable";
     
-    const ERR_FILE_PERMISSIONS = 'ERR_FILE_PERMISSIONS';
-    const ERR_FILE_PERMISSIONS_MESSAGE = "Check if the file is readable and/or writable in binary mode";
-    
-    const ERR_FILE_PATH_NOT_VALID = 'ERR_FILE_PATH_NOT_VALID';
-    const ERR_FILE_PATH_NOT_VALID_MESSAGE = "File path not valid";
-    
-    const ERR_FILE_RESOURCE_NOT_VALID = 'ERR_FILE_RESOURCE_NOT_VALID';
-    const ERR_FILE_RESOURCE_NOT_VALID_MESSAGE = "File pointer resource not valid. It must be a seekable stream";
+    const ERR_FILE_INVALID_RESOURCE = 'ERR_FILE_INVALID_RESOURCE';
+    const ERR_FILE_INVALID_RESOURCE_MESSAGE = "File pointer resource not valid";
     
     const ERR_FILE_OPEN = 'ERR_FILE_OPEN';
     const ERR_FILE_OPEN_MESSAGE = "Unable to open file";
@@ -438,12 +428,6 @@ abstract class Shapefile
     const OPTION_INVERT_POLYGONS_ORIENTATION = 'OPTION_INVERT_POLYGONS_ORIENTATION';
     
     /**
-     * @deprecated  This constant was deprecated with v3.5.0 and will disappear in the next releases.
-     *              Use ERR_FILE_RESOURCE_NOT_VALID instead.
-     */
-    const ERR_FILE_INVALID_RESOURCE = 'ERR_FILE_RESOURCE_NOT_VALID';
-    
-    /**
      * @deprecated  This constant was deprecated with v3.3.0 and will disappear in the next releases.
      *              Use ERR_GEOM_RING_AREA_TOO_SMALL instead.
      */
@@ -543,7 +527,7 @@ abstract class Shapefile
     private $fields = [];
     
     /**
-     * @var array   Array of File instances.
+     * @var array   Array of file pointer resource handles.
      */
     private $files = [];
     
@@ -763,11 +747,11 @@ abstract class Shapefile
     
     /////////////////////////////// PROTECTED ///////////////////////////////
     /**
-     * Opens files with binary read or write access.
+     * Opens file pointer resource handles to specified files with binary read or write access.
      *
-     * Filenames are mapped here because files are closed in destructors and working directory might be different!
+     * (Filenames are mapped here because files are closed in destructors and working directory may be different!)
      *
-     * @param   string|array    $files          Path to SHP file / Array of paths / Array of resource handles / Array of File instances.
+     * @param   string|array    $files          Path to SHP file / Array of paths / Array of resource handles of individual files.
      * @param   bool            $write_access   Access type: false = read; true = write.
      * @param   array           $ignored_files  Optional map of files to ignore [filetype => bool].
      *
@@ -808,30 +792,23 @@ abstract class Shapefile
         }
         
         
-        $this->filenames = [];
-        if (array_reduce($files, function($ret, $item) {
-            return $ret && $item instanceof File;
-        }, true)) {
-            // File instances
-            foreach ($files as $type => $File) {
-                if (!isset($ignored_files[$type]) || !$ignored_files[$type]) {
-                    if ((!$write_access && !$File->isReadable()) || ($write_access && !$File->isWritable())) {
-                        throw new ShapefileException(Shapefile::ERR_FILE_PERMISSIONS, strtoupper($type));
-                    }
-                    $this->files[$type] = $File; 
-                }
-            }
-        } elseif ($files === array_filter($files, 'is_resource')) {
+        $mode = $write_access ? 'c+b' : 'rb';
+        if ($files === array_filter($files, 'is_resource')) {
             // Resource handles
             foreach ($files as $type => $file) {
                 if (!isset($ignored_files[$type]) || !$ignored_files[$type]) {
-                    try {
-                        $this->files[$type] = new StreamResourceFile($file, $write_access);
-                    } catch (ShapefileException $e) {
-                        throw new ShapefileException($e->getErrorType(), strtoupper($type));
+                    $file_mode = stream_get_meta_data($file)['mode'];
+                    if (
+                            get_resource_type($file) != 'stream'
+                        ||  (!$write_access && !in_array($file_mode, ['rb', 'r+b', 'w+b', 'x+b', 'c+b']))
+                        ||  ($write_access && !in_array($file_mode, ['r+b', 'wb', 'w+b', 'xb', 'x+b', 'cb', 'c+b']))
+                    ) {
+                        throw new ShapefileException(Shapefile::ERR_FILE_INVALID_RESOURCE, strtoupper($type));
                     }
+                    $this->files[$type] = $file;
                 }
             }
+            $this->filenames = [];
         } else {
             // Filenames
             foreach (
@@ -845,50 +822,46 @@ abstract class Shapefile
                 ] as $type => $required
             ) {
                 if (isset($files[$type]) && (!isset($ignored_files[$type]) || !$ignored_files[$type])) {
-                    if (!is_string($files[$type])){
-                        throw new ShapefileException(Shapefile::ERR_FILE_PATH_NOT_VALID, strtoupper($type));
-                    }
                     if (
-                            (!$write_access && is_readable($files[$type]) && is_file($files[$type]))
-                        ||  ($write_access && is_writable(dirname($files[$type])) && (!file_exists($files[$type]) || (is_file($files[$type]) && is_writable($files[$type]) && (($this->getOption(Shapefile::OPTION_EXISTING_FILES_MODE) === Shapefile::MODE_APPEND && is_readable($files[$type])) || ($this->getOption(Shapefile::OPTION_EXISTING_FILES_MODE) === Shapefile::MODE_OVERWRITE)))))
+                            (!$write_access && is_string($files[$type]) && is_readable($files[$type]) && is_file($files[$type]))
+                        ||  ($write_access && is_string($files[$type]) && is_writable(dirname($files[$type])) && (!file_exists($files[$type]) || ($this->getOption(Shapefile::OPTION_EXISTING_FILES_MODE) != Shapefile::MODE_PRESERVE && is_readable($files[$type]) && is_file($files[$type]))))
                     ) {
-                        try {
-                            $this->files[$type]     = new StreamResourceFile($files[$type], $write_access);
-                            $this->filenames[$type] = $this->files[$type]->getFilepath();
-                        } catch (ShapefileException $e) {
-                            throw new ShapefileException($e->getErrorType(), $files[$type]);
+                        $handle = fopen($files[$type], $mode);
+                        if ($handle === false) {
+                            throw new ShapefileException(Shapefile::ERR_FILE_OPEN, $files[$type]);
                         }
+                        $this->files[$type]     = $handle;
+                        $this->filenames[$type] = realpath(stream_get_meta_data($handle)['uri']);
                     } elseif ($required) {
                         throw new ShapefileException(Shapefile::ERR_FILE_EXISTS, $files[$type]);
                     }
                 }
             }
         }
-        
-        // Set files pointers to start
-        foreach ($this->files as $File) {
-            $File->setPointer(0);
+        foreach (array_keys($this->files) as $file_type) {
+            $this->setFilePointer($file_type, 0);
         }
         
         return $this;
     }
     
     /**
-     * Closes all open files.
-     * Actually, this just destroys the reference to File instance, letting it handle the situation.
+     * Closes all open resource handles.
      *
      * @return  self    Returns $this to provide a fluent interface.
      */
     protected function closeFiles()
     {
-        foreach (array_keys($this->files) as $type) {
-            $this->files[$type] = null;
+        if (count($this->filenames) > 0) {
+            foreach ($this->files as $handle) {
+                fclose($handle);
+            }
         }
         return $this;
     }
     
     /**
-     * Truncates file to given length.
+     * Truncates an open resource handle to a given length.
      *
      * @param   string  $file_type  File type.
      * @param   int     $size       Optional size to truncate to.
@@ -897,14 +870,14 @@ abstract class Shapefile
      */
     protected function fileTruncate($file_type, $size = 0)
     {
-        $this->files[$file_type]->truncate($size);
+        ftruncate($this->files[$file_type], $size);
         return $this;
     }
     
     /**
      * Checks if file type has been opened.
      *
-     * @param   string  $file_type  File type (member of $this->files array).
+     * @param   string  $file_type  File type.
      *
      * @return  bool
      */
@@ -914,7 +887,7 @@ abstract class Shapefile
     }
     
     /**
-     * Gets an array of the open files.
+     * Gets an array of the open resource handles.
      *
      * @return  array
      */
@@ -924,8 +897,7 @@ abstract class Shapefile
     }
     
     /**
-     * Gets an array of canonicalized absolute pathnames.
-     * If files were passed as stream resource handles or File instances, an empty array is returned.
+     * Gets an array of canonicalized absolute pathnames if files were NOT passed as stream resources, or an empty array if they were.
      *
      * @return  array
      */
@@ -935,7 +907,7 @@ abstract class Shapefile
     }
     
     /**
-     * Gets file size.
+     * Gets size of an open a resource handle.
      *
      * @param   string  $file_type  File type (member of $this->files array).
      *
@@ -943,11 +915,11 @@ abstract class Shapefile
      */
     protected function getFileSize($file_type)
     {
-        return $this->files[$file_type]->getSize();
+        return fstat($this->files[$file_type])['size'];
     }
     
     /**
-     * Gets file current pointer position.
+     * Gets current pointer position of a resource handle.
      *
      * @param   string  $file_type  File type (member of $this->files array).
      *
@@ -955,11 +927,11 @@ abstract class Shapefile
      */
     protected function getFilePointer($file_type)
     {
-        return $this->files[$file_type]->getPointer();
+        return ftell($this->files[$file_type]);
     }
     
     /**
-     * Sets file pointer to specified position.
+     * Sets the pointer position of a resource handle to specified value.
      *
      * @param   string  $file_type  File type (member of $this->files array).
      * @param   int     $position   The position to set the pointer to.
@@ -968,12 +940,12 @@ abstract class Shapefile
      */
     protected function setFilePointer($file_type, $position)
     {
-        $this->files[$file_type]->setPointer($position);
+        fseek($this->files[$file_type], $position, SEEK_SET);
         return $this;
     }
     
     /**
-     * Resets file pointer position to its end.
+     * Resets the pointer position of a resource handle to its end.
      *
      * @param   string  $file_type  File type (member of $this->files array).
      *
@@ -981,12 +953,12 @@ abstract class Shapefile
      */
     protected function resetFilePointer($file_type)
     {
-        $this->files[$file_type]->resetPointer();
+        fseek($this->files[$file_type], 0, SEEK_END);
         return $this;
     }
     
     /**
-     * Increases file pointer position of specified offset.
+     * Increase the pointer position of a resource handle of specified value.
      *
      * @param   string  $file_type  File type (member of $this->files array).
      * @param   int     $offset     The offset to move the pointer for.
@@ -995,12 +967,12 @@ abstract class Shapefile
      */
     protected function setFileOffset($file_type, $offset)
     {
-        $this->files[$file_type]->setOffset($offset);
+        fseek($this->files[$file_type], $offset, SEEK_CUR);
         return $this;
     }
     
     /**
-     * Reads data from file.
+     * Reads data from an open resource handle.
      *
      * @param   string  $file_type      File type.
      * @param   int     $length         Number of bytes to read.
@@ -1009,7 +981,7 @@ abstract class Shapefile
      */
     protected function readData($file_type, $length)
     {
-        $ret = $this->files[$file_type]->read($length);
+        $ret = @fread($this->files[$file_type], $length);
         if ($ret === false) {
             throw new ShapefileException(Shapefile::ERR_FILE_READING);
         }
@@ -1017,7 +989,7 @@ abstract class Shapefile
     }
     
     /**
-     * Writes binary string packed data to file.
+     * Writes binary string packed data to an open resource handle.
      *
      * @param   string  $file_type      File type.
      * @param   string  $data           Binary string packed data to write.
@@ -1026,7 +998,7 @@ abstract class Shapefile
      */
     protected function writeData($file_type, $data)
     {
-        if ($this->files[$file_type]->write($data) === false) {
+        if (@fwrite($this->files[$file_type], $data) === false) {
             throw new ShapefileException(Shapefile::ERR_FILE_WRITING);
         }
         return $this;
@@ -1284,7 +1256,7 @@ abstract class Shapefile
             &&  $type !== Shapefile::DBF_TYPE_NUMERIC
             &&  $type !== Shapefile::DBF_TYPE_FLOAT
         ) {
-            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_TYPE_NOT_VALID, "$name - $type");
+            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_TYPE_NOT_VALID, $type);
         }
         
         // Check size
@@ -1299,7 +1271,7 @@ abstract class Shapefile
             ||  ($type == Shapefile::DBF_TYPE_NUMERIC && $size > $max_size)
             ||  ($type == Shapefile::DBF_TYPE_FLOAT && $size > $max_size)
         ) {
-            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_SIZE_NOT_VALID, "$name - $type - $size");
+            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_SIZE_NOT_VALID, $size);
         }
         
         // Minimal decimal formal check
@@ -1310,7 +1282,7 @@ abstract class Shapefile
             ||  ($decimals < 0)
             ||  ($decimals > 0 && $size - 1 <= $decimals)
         ) {
-            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_DECIMALS_NOT_VALID, "$name - $type - $decimals");
+            throw new ShapefileException(Shapefile::ERR_DBF_FIELD_DECIMALS_NOT_VALID, $type . ' - ' . $decimals);
         }
         
         // Add field

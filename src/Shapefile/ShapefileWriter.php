@@ -5,7 +5,7 @@
  *
  * @package Shapefile
  * @author  Gaspare Sganga
- * @version 3.5.0dev
+ * @version 3.4.0
  * @license MIT
  * @link    https://gasparesganga.com/labs/php-shapefile/
  */
@@ -155,7 +155,7 @@ class ShapefileWriter extends Shapefile
      * Destructor.
      *
      * Finalizes open files.
-     * Empty useless files will be removed if they were NOT passed as stream resources or FileInterface instances.
+     * If files were NOT passed as stream resources, empty useless files will be removed.
      */
     public function __destruct()
     {
