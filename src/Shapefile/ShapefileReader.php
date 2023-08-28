@@ -171,6 +171,7 @@ class ShapefileReader extends Shapefile implements \Iterator
     public function rewind()
     {
         $this->current_record = 0;
+        $this->setFilePointer(Shapefile::FILE_SHP, Shapefile::SHP_HEADER_SIZE);
         $this->next();
     }
     
@@ -521,7 +522,7 @@ class ShapefileReader extends Shapefile implements \Iterator
                 case Shapefile::DBF_TYPE_DATE:
                     $DateTime   = \DateTime::createFromFormat('Ymd', $value);
                     $errors     = \DateTime::getLastErrors();
-                    if ($errors['warning_count'] || $errors['error_count']) {
+                    if (is_array($errors) && ($errors['warning_count'] || $errors['error_count'])) {
                         $value = $this->getOption(Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES) ? null : $value;
                     } elseif ($this->getOption(Shapefile::OPTION_DBF_RETURN_DATES_AS_OBJECTS)) {
                         $DateTime->setTime(0, 0, 0);

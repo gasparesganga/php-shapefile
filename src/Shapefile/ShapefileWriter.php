@@ -960,12 +960,12 @@ class ShapefileWriter extends Shapefile
                     // Try YYYY-MM-DD format
                     $DateTime   = \DateTime::createFromFormat('Y-m-d', $value);
                     $errors     = \DateTime::getLastErrors();
-                    if ($errors['warning_count'] || $errors['error_count']) {
+                    if (is_array($errors) && ($errors['warning_count'] || $errors['error_count'])) {
                         // Try YYYYMMDD format
                         $DateTime   = \DateTime::createFromFormat('Ymd', $value);
                         $errors     = \DateTime::getLastErrors();
                     }
-                    if ($errors['warning_count'] || $errors['error_count']) {
+                    if (is_array($errors) && ($errors['warning_count'] || $errors['error_count'])) {
                         $value = $this->getOption(Shapefile::OPTION_DBF_NULLIFY_INVALID_DATES) ? null : $this->truncateOrPadString($this->sanitizeNumber($value), $size);
                     } else {
                         $value = $DateTime->format('Ymd');
