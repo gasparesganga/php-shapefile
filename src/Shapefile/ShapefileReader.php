@@ -168,12 +168,14 @@ class ShapefileReader extends Shapefile implements \Iterator
     }
     
     
+    #[\ReturnTypeWillChange]
     public function rewind()
     {
         $this->current_record = 0;
         $this->next();
     }
     
+    #[\ReturnTypeWillChange]
     public function next()
     {
         ++$this->current_record;
@@ -182,16 +184,19 @@ class ShapefileReader extends Shapefile implements \Iterator
         }
     }
     
+    #[\ReturnTypeWillChange]
     public function current()
     {
         return $this->readCurrentRecord();
     }
-
+    
+    #[\ReturnTypeWillChange]
     public function key()
     {
         return $this->current_record;
     }
-
+    
+    #[\ReturnTypeWillChange]
     public function valid()
     {
         return ($this->current_record !== Shapefile::EOF);
