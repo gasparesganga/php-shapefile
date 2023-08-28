@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## v3.4.1 - 2023-08-28
+### Fixed
+- `ShapefileReader::rewind()` pointer reset
+- Compatibility fixes for PHP 8+
+
+
+
 ## v3.4.0 - 2021-01-23
 ### Added
 - Full GeoJSON *Feature* support with properties data
