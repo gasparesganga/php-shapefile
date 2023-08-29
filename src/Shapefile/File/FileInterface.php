@@ -15,7 +15,7 @@ namespace Shapefile\File;
 /**
  * Interface to interact with files in binary mode.
  */
-interface File
+interface FileInterface
 {
     /**
      * Returns true if file is readable.

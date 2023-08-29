@@ -12,7 +12,7 @@
 
 namespace Shapefile;
 
-use Shapefile\File\File;
+use Shapefile\File\FileInterface;
 use Shapefile\File\StreamResourceFile;
 
 /**
@@ -159,7 +159,7 @@ abstract class Shapefile
     
     /**
      * Deletes empty files after closing them.
-     * This makes sense only when they were passed as resource handles or File instances.
+     * This makes sense only when they were passed as resource handles or FileInterface instances.
      * ShapefileWriter
      * @var bool
      */
@@ -543,7 +543,7 @@ abstract class Shapefile
     private $fields = [];
     
     /**
-     * @var array   Array of File instances.
+     * @var array   Array of FileInterface instances.
      */
     private $files = [];
     
@@ -767,7 +767,7 @@ abstract class Shapefile
      *
      * Filenames are mapped here because files are closed in destructors and working directory might be different!
      *
-     * @param   string|array    $files          Path to SHP file / Array of paths / Array of resource handles / Array of File instances.
+     * @param   string|array    $files          Path to SHP file / Array of paths / Array of resource handles / Array of FileInterface instances.
      * @param   bool            $write_access   Access type: false = read; true = write.
      * @param   array           $ignored_files  Optional map of files to ignore [filetype => bool].
      *
@@ -810,9 +810,9 @@ abstract class Shapefile
         
         $this->filenames = [];
         if (array_reduce($files, function($ret, $item) {
-            return $ret && $item instanceof File;
+            return $ret && $item instanceof FileInterface;
         }, true)) {
-            // File instances
+            // FileInterface instances
             foreach ($files as $type => $File) {
                 if (!isset($ignored_files[$type]) || !$ignored_files[$type]) {
                     if ((!$write_access && !$File->isReadable()) || ($write_access && !$File->isWritable())) {
@@ -875,7 +875,7 @@ abstract class Shapefile
     
     /**
      * Closes all open files.
-     * Actually, this just destroys the reference to File instance, letting it handle the situation.
+     * Actually, this just destroys the reference to FileInterface instance, letting it handle the situation.
      *
      * @return  self    Returns $this to provide a fluent interface.
      */
@@ -925,7 +925,7 @@ abstract class Shapefile
     
     /**
      * Gets an array of canonicalized absolute pathnames.
-     * If files were passed as stream resource handles or File instances, an empty array is returned.
+     * If files were passed as stream resource handles or FileInterface instances, an empty array is returned.
      *
      * @return  array
      */

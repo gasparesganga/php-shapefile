@@ -67,7 +67,7 @@ class ShapefileWriter extends Shapefile
     /**
      * Constructor.
      *
-     * @param   string|array    $files      Path to SHP file / Array of paths / Array of handles of individual files.
+     * @param   string|array    $files      Path to SHP file / Array of paths / Array of resource handles / Array of FileInterface instances.
      * @param   array           $options    Optional associative array of options.
      */
     public function __construct($files, $options = [])
